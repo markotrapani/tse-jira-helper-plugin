@@ -1,19 +1,29 @@
 ---
 name: tse-jira-ticket-creation
-description: Create Redis Jira tickets for Technical Support Engineers — Bug Jiras from Zendesk PDFs (with optional related Jira PDFs), multi-cluster RCA Jiras from Zendesk+Jira PDFs, and impact score estimation using the 8-130 TSE model. Multi-project (RED/MOD/DOC/RDSC/Root Cause Analysis), sprint-optional, uses the claude.ai Atlassian MCP. Activate when the user mentions creating a Jira from a Zendesk ticket, drafting an RCA, scoring a ticket's impact, or filing against any redislabs.atlassian.net project.
+description: Create Redis Jira tickets for Technical Support Engineers — Bug Jiras from Zendesk PDFs (+ optional related Jira PDFs), multi-cluster RCA Jiras by cloning RCA-41 (Zendesk + Jira PDFs), and impact score estimation using the 8-130 model. Grounded in Redis Customer Support team standards (Confluence pages 3785981958, 4267671553, 4575690753) and the canonical RCA-41 template. Multi-project (RED/MOD/DOC/RDSC + RCA), sprint-blank, uses the claude.ai Atlassian MCP. Activate when the user mentions creating a Jira from a Zendesk ticket, drafting an RCA, scoring a ticket's impact, or filing against redislabs.atlassian.net.
 ---
 
 # TSE Jira Ticket Creation
 
-A Redis Technical Support Engineer workflow for creating Jira tickets in `redislabs.atlassian.net` through the claude.ai Atlassian MCP. Supports three workflows:
+A Redis Technical Support Engineer workflow for creating Jira tickets in `redislabs.atlassian.net` through the claude.ai Atlassian MCP. **All workflows must align with the Support team's documented standards** — when in doubt, the Confluence docs win.
 
-| Workflow | Input | Output |
-|---|---|---|
-| **Bug Jira** | Zendesk PDF(s) (required) + related Jira PDFs (optional) | Bug ticket in RED / MOD / DOC / RDSC with impact score, mapped fields, optional linked issues |
-| **RCA Jira** | Zendesk PDF(s) **and** Jira PDF(s) (both required) | RCA ticket in "Root Cause Analysis" project with timeline, bug links, action items table |
-| **Impact Score** | Zendesk PDF, Jira PDF, plain text, or existing Jira key | 8-130 score + 6-component breakdown with reasoning |
+## Authoritative Sources (Re-read on Doubt)
 
-This skill is the spiritual successor to `~/Downloads/marko-projects/jira-helper` — same impact scoring, same Zendesk→Jira field mapping, but actually creates tickets via MCP instead of generating markdown for copy/paste.
+1. [**Jira creation for Support**](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958) — CS team's Bug-filing guide
+2. [**Jira - Impact Score**](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553) — 6-component scoring model
+3. [**RCA Initiation and Data Collection Procedure**](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) — RCA creation procedure (clone RCA-41)
+4. [**Internal R&D RCA Process**](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4571660292) — overall RCA process and KPIs
+5. [**RCA-41**](https://redislabs.atlassian.net/browse/RCA-41) — canonical RCA template ticket
+
+## Three Workflows
+
+| Workflow | Required Input | Optional Input | Result |
+|---|---|---|---|
+| **Bug Jira** (`/tse-jira bug`) | ≥1 Zendesk PDF (multiple OK) | Related Jira PDFs (any number — linked via `Relates`) | Bug ticket in RED / MOD / DOC / RDSC with TSE-judged severity, default priority, impact score, mapped fields. Impact-score breakdown posted as a comment. For Azure: post-save RCA-template field populated. |
+| **RCA Jira** (`/tse-jira rca`) | ≥1 Jira PDF (multiple OK) | Zendesk PDFs (any number) | RCA ticket created by cloning RCA-41 defaults: title `<Customer> - RCA <mm/dd/yyyy>`, Initial Root Cause from Jira PDF content, action items pre-filled with placeholders, all related bugs linked via `Relates`. Status starts at `Data Collection`. |
+| **Impact Score** (`/tse-jira score`) | ≥1 Jira (PDF or live key) (multiple OK) | Zendesk PDFs (any number, supplement context) | 8-130 score + 6-component breakdown with reasoning. **No ticket creation.** Score is a recommendation; team leader confirms before applying. |
+
+This skill is the spiritual successor to `~/Downloads/marko-projects/jira-helper` — same impact scoring model and conceptual field mapping, but actually creates tickets via MCP instead of generating markdown.
 
 ## Cloud ID
 
@@ -23,201 +33,244 @@ For all `mcp__claude_ai_Atlassian__*` calls against Redis Labs Jira:
 cloudId: 06f73ca7-8f2c-4392-b40a-08288e9d0ba3
 ```
 
-(Confirm with `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` if the call fails.)
+(Confirm with `getAccessibleAtlassianResources` if a call fails.)
 
 ## Reference Files
 
-Read the matching reference file as the workflow demands — don't load all of them upfront:
+Read the matching reference file as the workflow demands — don't load all upfront:
 
-- `references/impact-score-model.md` — full 6-component scoring model with point values, keyword indicators, priority bands. Read for any score-related work.
-- `references/zendesk-bug-mapping.md` — Zendesk PDF → Jira field mapping, project auto-detection rules, component/severity/priority maps. Read for the Bug workflow.
-- `references/rca-template.md` — RCA Jira form structure, timeline table format, action item taxonomy. Read for the RCA workflow.
+- [`references/jira-schema.md`](references/jira-schema.md) — **Source of truth for real field IDs, projects, issue types, link types.** Verified against the live tenant. Read for any field-level decisions.
+- [`references/impact-score-model.md`](references/impact-score-model.md) — Full 6-component scoring model (P1-P5 definitions, ARR tiers, SLA thresholds, multiplier rules) per [DevOps page 4267671553](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553). Read for any score-related work.
+- [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) — Bug filing field-by-field rules per [CS page 3785981958](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958). Read for the Bug workflow.
+- [`references/rca-template.md`](references/rca-template.md) — RCA filing per [DevOps page 4575690753](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) and RCA-41. Read for the RCA workflow.
 
 ## When to Activate
 
 - User says "create a Jira for this Zendesk ticket / PDF"
 - User mentions filing an RCA / drafting a root cause / multi-cluster incident
-- User asks for an impact score / priority assessment for a ticket
+- User asks for an impact score / priority assessment for a Jira ticket
 - User wants to file a bug against RED, MOD, DOC, or RDSC
-- User attaches or references a Zendesk PDF or Jira PDF
+- User attaches or references a Zendesk PDF or Jira PDF/key
 
-Do NOT auto-create. **Always preview the fields and ask for confirmation before calling `createJiraIssue`.**
+**Never auto-create.** Always preview the fields and ask for confirmation before any `createJiraIssue` / `createIssueLink` / `editJiraIssue` call.
+
+---
 
 ## Workflow A — Bug Jira from Zendesk
 
-### Inputs
+### Input Contract
 
-- **Required:** one or more Zendesk PDF paths (or full ticket text in the conversation)
-- **Optional:** related Jira PDF paths (used to add `Relates to` issue links, not to override scoring)
+- **Required:** ≥1 Zendesk PDF (path or text in conversation). Multiple Zendesk PDFs OK — they may all link to the same Bug if the issue is shared across customer tickets.
+- **Optional:** Any number of related Jira PDFs (to be linked via `Relates` after creation).
 
 ### Steps
 
-1. **Read the Zendesk PDF(s)** with the Read tool. PDFs are first-class — Read returns text + can read up to 20 pages.
-2. **Extract**:
+1. **Read all Zendesk PDFs** with the Read tool. PDFs are first-class — Read returns text and reads up to 20 pages.
+2. **Extract per PDF**:
    - Zendesk ticket ID (filename pattern: `redislabs.zendesk.com_tickets_<ID>_print.pdf`)
-   - Customer name (from account/organization field)
+   - Customer name / organization
    - Summary (one-line subject)
-   - Description (problem statement + first relevant comment thread)
-   - Priority / severity if stated
-   - Frequency indicators ("multiple times", "intermittent", recurrence dates)
-   - Cluster name, region, product (Redis Cloud / Redis Software / Azure Cache for Redis / RDI)
-3. **Compute impact score** — apply the model in `references/impact-score-model.md`. Show each component's score + reasoning to the user.
-4. **Auto-detect project** — apply rules in `references/zendesk-bug-mapping.md` (RDSC > MOD > RED). State the detected project; let the user override.
-5. **Map fields** — using `references/zendesk-bug-mapping.md`:
-   - Issue type: `Bug`
-   - Priority (Highest/High/Medium/Low/Lowest from score → priority text)
-   - Severity (Very High / High / Medium / Low from score thresholds)
-   - Components (DMC / Redis / Cluster / module-specific)
-   - Labels (extracted keywords + customer name + `Customer-Reported`)
-   - Custom fields: Zendesk ID, impact score, cache name, region, affected organization (Azure/AWS/GCP)
-6. **Preview** the ticket as a structured block:
-   ```
-   Project: <key>
-   Type: Bug
-   Summary: <one line>
-   Priority: <P-level>  Severity: <text>
-   Labels: <list>
-   Components: <list>
-   Custom fields:
-     Zendesk ID: <id>
-     Impact Score: <n> (<priority band>)
-     ...
-   Description preview: <first 200 chars>...
-   Related Jiras (issue links): <list, if any>
-   ```
-7. **Ask for confirmation.** "Ready to create this in <project>? (yes/edit/cancel)"
-8. **Create** via `mcp__claude_ai_Atlassian__createJiraIssue` with `cloudId` + the mapped fields.
-9. **Link related Jiras** (if optional Jira PDFs were provided): extract their issue keys from filenames or content, then call `mcp__claude_ai_Atlassian__createIssueLink` with type `Relates`.
-10. **Output**: the new Jira key + browse URL (`https://redislabs.atlassian.net/browse/<KEY>`).
+   - Description / problem statement
+   - Comments thread (first few relevant exchanges)
+   - Frequency indicators ("multiple times", "intermittent")
+   - Cluster name, region, product version
+   - Cloud (Azure / AWS / GCP), product (Redis Software / Cloud / RDI)
+3. **Compute impact score** — apply [`references/impact-score-model.md`](references/impact-score-model.md). Show 6-component breakdown with reasoning. **Flag that the score is a recommendation pending team leader confirmation.**
+4. **Auto-detect project** — apply rules in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) (RDSC → MOD → DOC → RED). State the detected project; let the user override.
+5. **Map fields** per [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md):
+   - Issue type: `Bug` (id from [`references/jira-schema.md`](references/jira-schema.md))
+   - **Severity** (`customfield_10180`): **Ask the TSE** to confirm based on customer impact (Very High / High / Medium / Low). NOT computed from impact score. Default `2 - Medium`, flag for review.
+   - **Priority** (system): `Medium` (default, id 3). PM sets later.
+   - Status: leave default (To Do).
+   - Assignee: leave default (Automatic).
+   - Sprint: leave blank.
+   - Component (`customfield_10181`): single-select, detect from content (DMC / Cluster / Azure integration / Cloud API / Security / etc.). Show pick and let user override.
+   - Environment (`customfield_10025`): **`Production`** (id 10007) — always for customer-originated tickets.
+   - Product (`customfield_10026`): multi-select — pick `RS (Redis Software)` for ACRE/Software, `RCP(RV/Pro/Flexible)` for Cloud.
+   - Reported Version/Build (`customfield_10056`): always add; comma-separated for multiple.
+   - Affected Organizations (`customfield_10595`): customer name dropdown (use autocomplete). If no match, fall back to `Seen by Customer/s` (`customfield_10027`) free text and note.
+   - Zendesk ID/s (`customfield_10036`): numbers only, comma-separated.
+   - Workaround (`customfield_10374`): if a WA exists, describe in a few words + complicated/simple.
+   - Data loss / Data unavailable / Downtime (`customfield_10371` / `_10372` / `_10369`): Yes/No each — ask TSE.
+   - Event Status (`customfield_10373`): set to `workaround implemented` if WA in place.
+   - Major Prod Channel (`customfield_10370`): Slack link if Major prod event.
+   - Metrics (`customfield_10375`): Grafana link if available.
+   - Impact Score (`customfield_10585`): numeric final score.
+   - ICM ID/s (`customfield_14258`): for AMR — Azure IcM incident IDs.
+   - **Labels**: always include `CS` or `Support`. Add `e2e_ta_coverage` if e2e-testable. For Azure: `Azure-Integration` + (`AMR` or `ACRE`); add `Azure_RCA_req` if an RCA is needed.
+6. **Construct Description** with the structure in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md):
+   - Symptom statement
+   - **Customer expectations (Fix / RCA / Information / Workaround)** — required per Support docs
+   - Cluster, Region, Product
+   - Reporter (Zendesk #)
+   - Details (extracted from Zendesk thread; ≤ ~2000 chars)
+   - For Active-Active incidents: A-A mapping table
+   - Log references in `cluster_name, node_id, shard_id` format
+   - Related Jira links (if any)
+7. **Preview** the structured ticket data. Include severity confirmation question to the user.
+8. **Ask for explicit confirmation**: "Ready to create this Bug in <project>? (yes / edit / cancel)"
+9. **Create** via `mcp__claude_ai_Atlassian__createJiraIssue` with `cloudId` + the mapped fields.
+10. **Post-create steps**:
+    1. **Add a comment** with the impact-score 6-component breakdown table (per Support standard, the breakdown goes in a comment, not a field). Use `mcp__claude_ai_Atlassian__addCommentToJiraIssue`.
+    2. **Link related Jiras** (if any related Jira PDFs were provided): extract issue keys from filenames/content, call `mcp__claude_ai_Atlassian__createIssueLink` with type `Relates` (id 10003) for each.
+    3. **For Azure tickets** (labels include `ACRE` or `AMR`): `editJiraIssue` to populate `customfield_10063` (RCA) with the Azure Incident Short Description template:
+       ```
+       ------------------------------
+       0. Incident short description:
+       ```
+11. **Output**: new Jira key + browse URL (`https://redislabs.atlassian.net/browse/<KEY>`) + checklist of what still needs human input (Reporter confirmation, Attachments, Affected Organizations dropdown match).
 
-### Sprint handling
-
-**Do not** ask about sprint by default. TSE bugs typically land in the backlog. If the user explicitly says "add to current sprint" or names a sprint, fetch sprint ID via `mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql` (`project = X AND sprint in openSprints()`) and add it to the create call.
+---
 
 ## Workflow B — RCA Jira (Multi-cluster)
 
-### Inputs
+### Input Contract
 
-- **Required:** Zendesk PDF(s) — the customer-facing incident tickets
-- **Required:** Jira PDF(s) — the related bug Jiras that feed the root cause analysis
-- **Required from user (ask once, batch the questions):**
-  - Customer name (e.g. "Azure", "monday.com")
-  - Incident date (MM/DD/YY)
+- **Required:** ≥1 Jira PDF (or live Jira key). Multiple Jiras OK — these are the related bug Jiras that feed the root cause analysis.
+- **Optional:** Any number of Zendesk PDFs (customer-facing context for impact statement and timeline).
+- **Required from user (ask once, batched):**
+  - Customer name (e.g., "Azure", "monday.com") — or `ClusterID` / `Major Service` for multi-customer incidents
+  - Incident date (`mm/dd/yyyy`)
   - Cluster names (list — TSE incidents often span multiple clusters)
-  - Regions (list)
-  - Affected component (default: detect from PDFs — typically DMC, Redis, or Cluster)
-
-> **Rationale for both PDF types:** Zendesk PDFs give the customer-facing timeline and impact. Jira PDFs give the root-cause hypotheses, action items, and engineering details. The RCA description weaves both.
-
-### Steps
-
-1. **Read all PDFs** in parallel with the Read tool.
-2. **Extract from Zendesk PDFs**:
-   - Ticket IDs, customer-reported start times, customer impact descriptions, support-package S3 paths (look for `s3://gt-logs/...`)
-3. **Extract from Jira PDFs**:
-   - Bug keys (filenames: `[#RED-NNNNNN]...pdf`), bug summaries, "Initial Root Cause" candidates, action item drafts, log patterns
-4. **Build timeline table** — chronologically sort events per cluster. Use `references/rca-template.md` format:
-   ```
-   | Date and Time (UTC) | Activity |
-   | Oct-01-2025, 21:22  | DMC high CPU on <cluster> |
-   | Oct-03-2025, 04:26  | Manual DMC restart — resolved |
-   ```
-5. **Determine start/end times**: earliest "started"/"detected" event, latest "resolved"/"completed" event.
-6. **Compose RCA fields** (full template in `references/rca-template.md`):
-   - Project: `Root Cause Analysis` (look up actual project key with `mcp__claude_ai_Atlassian__getVisibleJiraProjects` if first run)
-   - Issue type: `RCA`
-   - Summary: `{customer} - RCA {date}`
-   - Priority: Medium (RCAs are not P1 — the underlying bug Jiras own urgency)
-   - Status: Data Collection (initial)
-   - Labels: ACRE / cluster / dmc / azure / customer_name — pulled from incident content
-   - Custom fields: Cluster ID list, Account name, Affected component, Is Customer RCA needed? (Yes), Slack channel, Product
-   - Description body: Summary paragraph + Timeline table + Logs section + Relevant Links (Zendesk + Jira + ACRE cache links) + Initial Root Cause + (placeholders for) Final Root Cause + Action Items table
-7. **Preview** the full description rendered as the user will see it in Jira. Include the timeline table.
-8. **Ask for confirmation** explicitly — RCAs are high-visibility tickets.
-9. **Create** via `createJiraIssue`.
-10. **Link every related ticket**:
-    - For each Zendesk ticket: add a remote issue link via `mcp__claude_ai_Atlassian__createIssueLink` if Jira has the Zendesk integration, otherwise embed the URL in the description's "Relevant Links" section
-    - For each bug Jira: `createIssueLink` with type `Relates`
-11. **Output**: RCA key + browse URL + a checklist of what still needs human input (Final Root Cause, Action Item assignees/tickets).
-
-## Workflow C — Impact Score Estimation Only
-
-### Inputs (any one of)
-
-- Path to a Zendesk PDF
-- Path to a Jira PDF
-- Existing Jira key (e.g., `RED-172734`)
-- Pasted ticket text (summary + description)
+  - Start time and End time (UTC)
+  - Product: Redis Cloud / Redis Software / AMR
+  - Affected components (multi-select from the 44-option list)
+  - Contributors (incident participants — emails / account IDs)
 
 ### Steps
 
-1. **Source the content**:
+1. **Read all Jira and Zendesk PDFs** in parallel with the Read tool. For live Jira keys provided as input (not PDFs), fetch via `mcp__claude_ai_Atlassian__getJiraIssue` (cloudId, key, `responseContentFormat: "markdown"`).
+2. **Azure prerequisite check**: If the user is creating an Azure RCA (label or content indicates Azure / ACRE / AMR), verify at least one related Jira is in RED or MOD project. If not, flag and refuse to proceed — per Support docs, Azure RCAs always need a RED/MOD ticket associated.
+3. **Extract from Zendesk PDFs**:
+   - Ticket IDs, customer-reported start times, impact descriptions
+   - Support-package S3 paths (`s3://gt-logs/...`)
+4. **Extract from Jira PDFs / live issues**:
+   - Bug keys (filenames: `[#RED-NNNNNN]...pdf`)
+   - Summaries, "Initial Root Cause" candidates, action items drafts, log patterns
+5. **Build timeline** — chronologically sorted events tied to specific cluster names per [`references/rca-template.md`](references/rca-template.md). Format:
+   ```
+   | Date and Time (UTC)  | Activity                                              |
+   |----------------------|-------------------------------------------------------|
+   | MMM-DD-YYYY, HH:MM   | <event tied to cluster>                              |
+   ```
+6. **Compose summary** (must include per procedure): incident summary, customer impact, critical event timestamps, impact assessment, mitigation actions, escalations.
+7. **Build payload** modeling RCA-41 defaults (full template in [`references/rca-template.md`](references/rca-template.md)):
+   - Project: `RCA` (10245), Issue Type: `RCA` (10590) — NOT Support RCA
+   - Summary: `<Customer> - RCA <mm/dd/yyyy>` (or `<ClusterID> - RCA <mm/dd/yyyy>` for multi-customer)
+   - Description: Summary paragraph + Timeline table (the only content in description body)
+   - Custom fields populated:
+     - `customfield_10469` (Start time UTC) — datetime
+     - `customfield_10470` (End time UTC) — datetime
+     - `customfield_10475` (Zendesk) — bullet list with links
+     - `customfield_10476` (Slack) — channel name with link
+     - `customfield_10490` (Initial Root Cause) — hypothesis from Jira PDFs
+     - `customfield_10467` (Final Root Cause & Conclusions) — keep 5-bullet placeholder
+     - `customfield_10478` (Action item(s)) — ADF table with action items + red instruction line
+     - `customfield_10495` (Affected component) — multi-checkbox
+     - `customfield_10516` (Cluster ID) — labels array
+     - `customfield_10520` (Account name) — `[customer_underscored]`
+     - `customfield_10521` (Account ID) — if known
+     - `customfield_10519` (Product) — `Redis Cloud` / `Redis Software` / `AMR`
+     - `customfield_10619` (Is Customer RCA needed?) — `Yes` (23171)
+     - `customfield_10472` (Contributors) — incident participants
+   - Reporter: current user (the TSE creating the ticket)
+   - Status (initial): `Data Collection` (id 10732) — leave as default
+   - Labels: customer underscored + incident keywords (`ACRE`, `dmc`, `high_cpu`, etc.)
+8. **Preview** the full payload — render description, action items table, custom field values.
+9. **Ask for explicit confirmation**: "Ready to create this RCA? (yes / edit / cancel)"
+10. **Create** via `createJiraIssue`.
+11. **Post-create steps**:
+    1. **Link each related bug Jira** via `createIssueLink` with type `Relates` (id 10003): `inwardIssueKey` = new RCA, `outwardIssueKey` = each related bug key.
+    2. **Output checklist of placeholders** still needing human input:
+       - Final Root Cause (Engineering)
+       - Action item owners and Jira ticket keys
+       - Customer RCA URL when generated
+       - Contributors verification
+    3. **Reminder**: "When data entry is complete, transition the ticket from `Data Collection` to `Root Cause and Action Items`. Slack notifications post automatically to #root-cause-analysis."
+
+---
+
+## Workflow C — Impact Score Estimation
+
+### Input Contract
+
+- **Required:** ≥1 Jira (multiple OK):
+  - Live Jira key (e.g. `RED-172734`) — fetched via `getJiraIssue`
+  - OR Jira PDF path — Read tool
+- **Optional:** Any number of Zendesk PDFs (supplement context for ARR / customer impact / frequency).
+
+### Steps
+
+1. **Source the content** for each Jira input:
+   - Live key → `mcp__claude_ai_Atlassian__getJiraIssue` (cloudId, key, `responseContentFormat: "markdown"`)
    - PDF → Read tool
-   - Jira key → `mcp__claude_ai_Atlassian__getJiraIssue` with cloudId + key, expand `renderedFields` so the description is plain text
-   - Pasted text → use as-is
-2. **Apply the model** in `references/impact-score-model.md`. For each of the 6 components, output:
-   - Score (e.g. "16/16")
-   - Reasoning ("found 'multiple occurrences' keyword in comments")
-3. **Compute base + final** (base × (1 + support_mult + account_mult)).
-4. **Output** structured breakdown:
+2. **For each Zendesk PDF** (if provided): Read; extract customer / frequency / SLA / workaround signals.
+3. **Apply the model** in [`references/impact-score-model.md`](references/impact-score-model.md). For each of the 6 components, output:
+   - Score (e.g., "16/16")
+   - Reasoning (e.g., "found 'multiple occurrences' across 3 Zendesk threads")
+4. **Compute base + final** (`base × (1 + CloudOps_mult + Customer_mult)`).
+5. **Output** structured breakdown:
    ```
    IMPACT SCORE: 78.0 (HIGH)
-   Base: 78  Multipliers: Support=0, Account=0
+   Base: 78  Multipliers: CloudOps=0, Customer=0
 
-   | Component        | Score | Max | Reasoning |
-   |------------------|-------|-----|-----------|
-   | Impact & Severity | 30   | 38  | P2 — service degraded |
-   | Customer ARR      | 15   | 15  | ARR > $1M (Azure) |
-   | SLA Breach        | 8    | 8   | Breach mentioned in ticket |
-   | Frequency         | 16   | 16  | >4 occurrences over 2 weeks |
-   | Workaround        | 5    | 15  | Simple restart workaround |
-   | RCA Action Item   | 8    | 8   | Linked to existing RCA |
+   | Component         | Score | Max | Reasoning                          |
+   |-------------------|-------|-----|------------------------------------|
+   | Impact & Severity | 30    | 38  | P2 — service degraded              |
+   | Customer ARR      | 15    | 15  | Azure (>$1M)                       |
+   | SLA Breach        | 8     | 8   | Breach claim in ticket             |
+   | Frequency         | 16    | 16  | >4 occurrences over 2 weeks        |
+   | Workaround        | 5     | 15  | Simple restart workaround          |
+   | RCA Action Item   | 8     | 8   | Linked to existing RCA             |
+
+   Per Support standard, the team leader should confirm this score before applying to the ticket(s).
    ```
-5. **Do NOT create a ticket** in this workflow. Score-only is a triage tool.
+6. **Do NOT create or modify any ticket** in this workflow. Score-only is a triage / discussion tool.
+7. **Offer**: "Want me to apply this score to <Jira-key>? I'll set `customfield_10585` and post a breakdown comment." (Only on explicit yes.)
+
+---
 
 ## Multi-Project Handling
 
-The skill should support filing into any project the user has access to, not just RED. Rules:
+The skill supports filing into any project the user has access to. Rules:
 
-- **Auto-detect** the project from PDF content for Bug workflow (see `references/zendesk-bug-mapping.md`). Show the choice and let the user override.
-- **For unknown projects** (user says "file in PROJ-XYZ"), call `mcp__claude_ai_Atlassian__getJiraProjectIssueTypesMetadata` first to discover allowed issue types, then `getJiraIssueTypeMetaWithFields` for required fields.
-- **Component lists are project-specific.** Do not hardcode. For projects beyond RED/MOD/DOC/RDSC, fetch components dynamically and ask the user to pick.
-- **Custom field IDs are tenant-specific.** Field IDs in `references/zendesk-bug-mapping.md` are the known ones for redislabs.atlassian.net (e.g. `customfield_10010` Sprint). If a `createJiraIssue` call fails with "field not on screen for issue type X", fetch the issue type meta to learn which fields are valid for that combination.
+- **Auto-detect** project from content for the Bug workflow per [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md). Show the choice; let user override.
+- **For unknown projects** (user says "file in PROJ-XYZ"): call `getJiraProjectIssueTypesMetadata` first, then `getJiraIssueTypeMetaWithFields` for the chosen type. Filter the field list to TSE-relevant fields before previewing.
+- **Component lists are project-specific.** Don't hardcode beyond what's in [`references/jira-schema.md`](references/jira-schema.md). For new projects, fetch components dynamically.
+- **Custom field IDs are tenant-specific** but stable for redislabs.atlassian.net per [`references/jira-schema.md`](references/jira-schema.md). If `createJiraIssue` fails with "field cannot be set", drop the offending field and retry.
 
-## Description Formatting (ADF)
+## Description Formatting (ADF vs Markdown)
 
-`mcp__claude_ai_Atlassian__createJiraIssue` and `editJiraIssue` accept descriptions as Atlassian Document Format (ADF). For TSE workflows, lean on the simplest ADF nodes:
+`createJiraIssue` and `editJiraIssue` typically accept either ADF or markdown for description / textarea fields. **Try markdown first**; if rendering is off (e.g., tables don't render), convert to ADF.
 
-- `paragraph` with `text` runs
-- `bulletList` / `orderedList` with `listItem`
-- `table` for timeline + action items (RCA)
-- `codeBlock` for log snippets
-- `inlineCard` or plain link for Zendesk/Jira URLs
-
-The MCP tool will accept either ADF objects or plain markdown strings depending on its current implementation — try markdown first; if rendering is off, convert to ADF. Keep the description structure mirroring `references/rca-template.md` for RCAs and the bug template for Bugs.
+For Action Item tables (`customfield_10478`), markdown tables usually work. ADF is more reliable for nested formatting (bold "Investigate" / "Prevent" / "Mitigate" cells, red instruction line).
 
 ## Safety Rules
 
-1. **Never** create a ticket without explicit user confirmation of the preview.
-2. **Never** silently overwrite an existing ticket's fields with `editJiraIssue` — show the diff and ask first.
-3. **Never** assume a Jira key exists without verifying via `getJiraIssue` — typos are common.
-4. **Refuse** to file tickets that would expose PII or secrets present in the source PDFs without redaction. Flag and ask the user to confirm.
-5. **Never** auto-transition tickets (e.g., to "In Progress") as part of creation. That's a separate user action.
+1. **Always preview + confirm** before any `createJiraIssue`, `createIssueLink`, or `editJiraIssue` call.
+2. **Never silently overwrite an existing ticket's fields** with `editJiraIssue` — show the diff first.
+3. **Never assume a Jira key exists** without verifying via `getJiraIssue` — typos are common.
+4. **Refuse to file tickets exposing PII / secrets** in source PDFs without redaction. Flag and ask.
+5. **Never auto-transition tickets** as part of creation. That's a separate user action.
+6. **Azure RCA prerequisite**: refuse to create an Azure RCA if no RED/MOD bug is in the related links — per Support docs.
+7. **Impact score is a recommendation**: always flag that the team leader should confirm the score before applying.
 
 ## Failure Modes & Recovery
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `createJiraIssue` returns 400 "field cannot be set" | Custom field not on the create screen for that issue type | Fetch `getJiraIssueTypeMetaWithFields` for project + issue type; drop fields not in the response |
-| 401/403 on any MCP call | Atlassian auth expired | Run `mcp__claude_ai_Atlassian__authenticate` (claude.ai will surface a login prompt) |
-| Project name typo (e.g., "Root Cause Analysis" doesn't resolve) | Need the actual project key | `getVisibleJiraProjects` with `searchString` to discover the real key |
-| Issue type `RCA` rejected | Issue type ID/name varies per project | `getJiraProjectIssueTypesMetadata` to list valid types |
-| Description renders as raw markdown | MCP expected ADF | Re-encode description as ADF document |
+| 401/403 on any MCP call | Atlassian auth expired | Run `mcp__claude_ai_Atlassian__authenticate` (claude.ai surfaces login) |
+| Project name typo (e.g., "Root Cause Analysis" key) | Need actual project key | `getVisibleJiraProjects` with `searchString` to discover real key |
+| Issue type `RCA` rejected on non-RCA project | Issue type only exists in RCA project | `getJiraProjectIssueTypesMetadata` to confirm valid types per project |
+| Affected Organizations dropdown — customer not found | Customer not in the 9,253-option list | Set `Seen by Customer/s` (free text) as fallback and note |
+| Severity field rejects value | Wrong format — values need numeric prefix | Use `0 - Very High`, `1 - High`, `2 - Medium`, `3 - Low` exactly |
+| RCA-related fields rejected on Bug ticket | Some RCA fields only exist on RCA issue type | Drop and warn |
 
 ## Related Tools
 
-- `/tse-jira bug <zendesk-pdf>` — Bug workflow shortcut (see `commands/tse-jira.md`)
-- `/tse-jira rca` — RCA workflow shortcut
-- `/tse-jira score <input>` — Impact score only
-- ECC `jira-integration` skill — complementary; handles read/comment/transition/search on existing tickets
-- `redislabsdev/agent-skills` `ticket-to-pr` — converts a Jira ticket into a PR (after creation)
+- `/tse-jira bug <zendesk-pdfs>+ [-- <jira-pdfs>+]` — Bug workflow shortcut
+- `/tse-jira rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — RCA workflow shortcut
+- `/tse-jira score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — Impact score only
+- ECC `jira-integration` skill — complementary; read/comment/transition/search on existing tickets
+- `redislabsdev/agent-skills/ticket-to-pr` — converts a Jira into a PR (after creation)

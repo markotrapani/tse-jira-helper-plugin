@@ -1,225 +1,242 @@
-# RCA Jira Template
+# RCA Jira — TSE Workflow
 
-Adapted from `jira-helper/src/generate_rca_form.py` and `jira_creator.create_rca_ticket`.
+**Authoritative sources:**
+- [RCA Initiation and Data Collection Procedure (DevOps space, page 4575690753)](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) — the procedure
+- [Internal R&D RCA and Continuous Improvement Process (DevOps space, page 4571660292)](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4571660292) — the overall process
+- [RCA-41](https://redislabs.atlassian.net/browse/RCA-41) — the canonical template ticket
+- [Jira creation for Support](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958) — Support team's Jira guide (mentions Azure RCA → RED/MOD link requirement)
 
-## Project
+## TLDR
 
-**Project key**: Look up via `mcp__claude_ai_Atlassian__getVisibleJiraProjects` with `searchString: "Root Cause Analysis"`. The display name is "Root Cause Analysis" but the project key may be shorter (e.g., `RCA`). Cache the resolved key once discovered.
+**Per Support procedure**: clone RCA-41 (in the UI: three-dots → Clone). For programmatic creation via MCP, we replicate that effect by calling `createJiraIssue` with the same field defaults as RCA-41, then overriding incident-specific values.
 
-**Issue type**: `RCA` (verify via `getJiraProjectIssueTypesMetadata` on first run).
+## Project + Type
+
+```
+project: { "key": "RCA" }    // id 10245, name "Root Cause Analysis"
+issuetype: { "id": "10590" } // RCA — same type as RCA-41
+```
+
+> **Don't use `Support RCA` (16251)**. RCA-41 (the canonical template) uses plain `RCA` (10590). Field schemas are nearly identical, but RCA-41 = RCA, so we use RCA.
+
+## TSE Role
+
+Per the R&D RCA process doc, the TSE is the **Initiator** (along with CloudOps / SRE). The Initiator's responsibilities:
+
+- Identify incidents requiring an RCA
+- **Create the RCA ticket within 6 hours after incident resolution** (RTTI KPI)
+- Provide collected data, initial root cause, context
+- Set the right status
 
 ## Required Fields
 
-Ask the user for these once, batched:
+- `project` — `{"key":"RCA"}`
+- `issuetype` — `{"id":"10590"}`
+- `summary` — see Title Format below
 
-1. **Customer name** — e.g., "Azure", "monday.com", "Salesforce"
-2. **Incident date** — MM/DD/YY format (e.g., "10/24/25")
-3. **Cluster names** — list (one or many): `rediscluster-ktcsproda11.eastus2`, `csie-fnp-linx01-redis03.northeurope`, etc.
-4. **Regions** — list: `eastus2`, `northeurope`, `uksouth`, ...
-5. **Affected component** — typically `DMC` for ACRE incidents. Default: detect from Jira PDFs.
+## Title Format
 
-## Basic Fields
-
-| Field | Value |
-|---|---|
-| Project | Root Cause Analysis |
-| Issue Type | RCA |
-| Summary | `{customer_name} - RCA {date}` (e.g., "Azure - RCA 10/24/25") |
-| Status | `Data Collection` (initial; user transitions to "Root Cause and Action Items" after filling final RCA) |
-| Priority | `Medium` (RCAs don't carry P1 urgency — the underlying bug Jiras do) |
-| Reporter | Current user |
-| Assignee | Unassigned — user assigns to a Support DRI |
-| Labels | Combine: `customer_name_underscored`, incident-specific keywords (`ACRE`, `dmc`, `high_cpu`, `azure`, `audit_logging`, ...) |
-| Components | `{affected_component}` |
-| Affects versions | None (typically) |
-| Fix versions | None (filled later by Engineering) |
-
-## Custom Fields (RCA-specific)
-
-These appear on the RCA issue create screen. Field IDs to be confirmed per tenant via `getJiraIssueTypeMetaWithFields`.
-
-| Field | Default Value |
-|---|---|
-| Is Customer RCA needed? | `Yes` |
-| Slack channel | `#prod-{date_compact}-{customer_lower}` — e.g., `#prod-102425-azure`. Mark "No prod channel (yet)" if none exists |
-| Cluster ID | Comma-separated list from input |
-| Account name | Customer name |
-| Account ID | (Leave blank unless found in PDFs) |
-| Product | `Redis Software` for ACRE/Enterprise; `Redis Cloud` for Redis Cloud incidents |
-| Affected component | From input |
-| Is the Customer RCA delivered? | `None` initially |
-
-## Description Body Structure
-
-Render in this exact order. Use the markdown form (the MCP can take markdown for descriptions). The description should mirror what a TSE would expect to see in a Jira RCA — the user shouldn't have to reorganize it.
-
-### Section 1: Summary
-
-A 2–4 sentence narrative. Pattern:
+From the procedure doc and RCA-41:
 
 ```
-{Impact statement: what broke, where, when}. {Affected count of clusters and regions}.
-{How it was resolved per cluster — manual restart vs. automatic VM freeze}.
-{Initial hypothesis from Jira PDFs — e.g., "Initial analysis indicates potential correlation with audit logging configuration issues and BDB state machine updates."}
+<Customer Name> - RCA <mm/dd/yyyy>
 ```
 
-### Section 2: Key Details
+- Example: `"Azure - RCA 10/24/2025"`, `"LTK - RCA 11/02/2025 - db:13038666 latency"`
+- The RCA-41 raw template literally says `<mm/dd/yyy>` (3 y's). Most real production clones use `mm/dd/yyyy` (4 y's) — both are accepted. The skill should use `mm/dd/yyyy` for clarity.
 
-```
-**Start time (UTC):** {earliest_event}
-**End time (UTC):** {latest_event}
+**Multi-customer / multi-tenant incidents**: replace `<Customer Name>` with:
+- `ClusterID` (when affecting a specific cluster shared by multiple customers)
+- `Major Service Affected` like `DNS`, `Control Plane`, `Cloud API`
 
-**Zendesk:**
-- #{zendesk_id_1}
-- #{zendesk_id_2}
-- ...
+Examples from production: `"Multiple GCP - RCA <11/16/2015>"`, `"AMR - RCA 03/13/2026"`.
 
-**Slack:** {channel_or_"No prod channel (yet)"}
-```
+## Initial Status
 
-### Section 3: Timeline Table
+Set or leave as **`Data Collection`** (status id 10732). Transition to `Root Cause and Action Items` (id 10856) only when data entry is complete (Step 5 of procedure).
 
-```
-| Date and Time (UTC)  | Activity                                                                |
-|----------------------|-------------------------------------------------------------------------|
-| {MMM-DD-YYYY, HH:MM} | {Event description tied to specific cluster}                             |
-| ...                  | ...                                                                       |
-```
+Full workflow: `Data Collection` → `Root Cause and Action Items` → `Pending Action Items` → `Final Review` → `RCA Completed`.
 
-**Event ordering**: chronological, oldest first.
-**Event content**: one event per row. Tie each row to a specific cluster name when possible.
-**Resolution rows**: mark how each cluster recovered — `Manual DMC restart - Issue resolved` or `Automatic VM freeze event - Issue resolved`.
+**TSE rule**: Don't auto-transition past `Root Cause and Action Items`. Engineering and Leadership control later transitions.
 
-### Section 4: Logs Section
+## Custom Fields — Populated Directly
 
-```
-**Logs Section:**
-Key log patterns identified across incidents:
-1. {Log pattern or placeholder if not yet extracted}
-2. {...}
-3. {...}
-```
+**Critical**: RCA content lives in dedicated custom fields, NOT mixed into description body. RCA-41 demonstrates the canonical placement.
 
-If logs aren't yet extracted, use placeholders the TSE can fill in later:
-- `[Key log entries to be added manually]`
-- `[Include timestamps, error messages, and relevant system logs]`
-- `[Focus on logs that indicate the root cause of the incident]`
+### Right Panel Fields (per procedure)
 
-### Section 5: Relevant Links
+| Field                  | fieldId             | Type             | Per RCA-41 default / TSE notes |
+|------------------------|---------------------|------------------|-------|
+| **Reporter**           | `reporter`          | user             | **Assign yourself** — the TSE creating the ticket |
+| **Contributors**       | `customfield_10472` | array of user    | All active participants of the incident |
+| **Cluster ID**         | `customfield_10516` | array (labels)   | Cluster names from incident |
+| **Account name**       | `customfield_10520` | array (labels)   | Customer name. **Replace spaces with underscores** (e.g., `"monday.com"` → `["monday_com"]`) |
+| **Account ID**         | `customfield_10521` | array (labels)   | If known |
+| **Product**            | `customfield_10519` | option (select)  | "Cloud or Software" per docs. Options: `Redis Cloud` (11122), `Redis Software` (11123), `AMR` (11209). Default: Redis Cloud |
+| **Affected component** | `customfield_10495` | multi-checkbox   | One or more from the 44-option list (see jira-schema.md) |
 
-```
-**Relevant Links:**
+### Main Section Fields (per procedure)
 
-**Zendesk Tickets:**
-- [#{zendesk_id_1}](https://redislabs.zendesk.com/agent/tickets/{zendesk_id_1})
-- ...
+| Field                              | fieldId             | Type             | Per RCA-41 default / TSE notes |
+|------------------------------------|---------------------|------------------|-------|
+| **Start time (UTC)**               | `customfield_10469` | datetime         | Incident start time |
+| **End time (UTC)**                 | `customfield_10470` | datetime         | Incident end time |
+| **Zendesk**                        | `customfield_10475` | textarea (ADF)   | Bullet list with linked Zendesk IDs. RCA-41 default: `#XXXXXX` linked to `https://redislabs.zendesk.com/agent/tickets/XXXXXX` |
+| **Slack**                          | `customfield_10476` | textarea (ADF)   | Hyperlinked Slack channel — see Slack Channel Convention below |
+| **Initial Root Cause**             | `customfield_10490` | textarea (ADF)   | High-level understanding from production event or preliminary investigation. RCA-41 default placeholder: `<Add your initial RCA here>` |
+| **Final Root Cause & Conclusions** | `customfield_10467` | textarea (ADF)   | **Leave with 5 bullet placeholders** `<Add your final RCA and Conclusions here>` — Engineering fills later |
+| **Action item(s)**                 | `customfield_10478` | textarea (ADF table) | RCA-41 default: 3-row ADF table. See Action Items Template below |
+| **Is Customer RCA needed?**        | `customfield_10619` | option (select)  | `Yes` (23171) — TSE default |
+| Is the Customer RCA delivered?     | `customfield_14159` | multi-checkbox   | Leave empty initially |
+| Customer RCA                       | `customfield_10496` | URL              | Link to customer-facing RCA doc (filled later) |
 
-**Jira Bug Tickets:**
-- [{RED-NNNNNN}](https://redislabs.atlassian.net/browse/{RED-NNNNNN}) - {bug_summary}
-- ...
+## Description Body (Summary + Timeline)
 
-**Related RCA Tickets:**
-- {related RCA key or "[No related RCA tickets]"}
-```
+Per RCA-41, the description is minimal:
 
-### Section 6: Logs and Files (Support Packages + Cache Links)
+```markdown
+**Summary:** {Incident summary: what broke, where, when, customer impact, mitigation actions, escalations}
 
-```
-**Logs and Files:**
+---
 
-**Ticket #{zendesk_id_1} Support Packages:**
-- s3://gt-logs/exa-to-gt/ZD-{zendesk_id_1}-{related_bug}/...
-
-**ACRE Cache Links:** (only for Azure incidents)
-- {jarvis-west.dc.ad.msft.net dgrep URL}
-- ...
+| **Date and Time _(UTC)_** | **Activity** |
+| --- | --- |
+| {MMM-DD-YYYY, HH:MM}      | {What happened / what was done} |
+| {MMM-DD-YYYY, HH:MM}      | {...}                            |
 ```
 
-Extract `s3://gt-logs/...` URLs from the Zendesk PDFs. ACRE Jarvis URLs typically come from the Jira PDFs or are added manually.
+### Summary Must Include (per procedure)
 
-### Section 7: Initial Root Cause
+- Incident summary
+- Customer impact statement
+- Timestamps of critical events
+- Impact assessment
+- Mitigation actions
+- Escalation details (e.g., notifications sent to on-call engineers)
+
+### Summary May Include (when available)
+
+- Extra system logs or monitoring data
+- Non-critical commands
+- Supporting screenshots / supplementary details
+
+## Slack Channel Convention
+
+RCA-41 default: `#prod-YEARMONTHDATE-cXXXXXX` (compact, cluster-based).
+
+Procedure example: `#prod_incident-20250127-biocatch_prod37_zd131142` (descriptive, single-incident).
+
+The skill should suggest the more descriptive form when single-customer/single-cluster, fall back to compact form otherwise:
+
+- Descriptive: `#prod_incident-{YYYYMMDD}-{customer_lower}_{cluster_short}_zd{zendesk_id}`
+- Compact: `#prod-{YYYYMMDD}-c{cluster_id_short}`
+
+If no Slack channel exists yet, populate with the text `"No prod channel (yet)"`.
+
+## Action Items Template (`customfield_10478` ADF)
+
+RCA-41's default. **Keep the red instruction line; replace placeholders with actual action items**:
+
+```markdown
+[red text] After updating the table below, ensure the tickets are linked with the `relates to` type.
+
+| Description           | Type                                       | Owner  | Ticket                              |
+|-----------------------|--------------------------------------------|--------|-------------------------------------|
+| <What is the AI about?> | **Investigate** or **Prevent** or **Mitigate** | @name | <jira-ticket> e.g: RED-999999      |
+| <What is the AI about?> | **Investigate** or **Prevent** or **Mitigate** | @name | <jira-ticket> e.g: RED-999999      |
+| <What is the AI about?> | **Investigate** or **Prevent** or **Mitigate** | @name | <jira-ticket> e.g: RED-999999      |
+```
+
+**Type values** — pick one per row:
+- **Investigate** — research / analysis
+- **Prevent** — preventative engineering change
+- **Mitigate** — short-term mitigation
+
+When the skill has Jira PDFs of related bugs, it can pre-fill some action items derived from bug content (e.g., keyword "cpu" → "Investigate CPU utilization patterns").
+
+## Linking Related Tickets
+
+Per Step 4 of the procedure:
 
 ```
-**Initial Root Cause:**
-{1-3 paragraph hypothesis based on Jira PDF content. Should reference specific symptoms (high CPU, audit disconnects, state machine updates) without committing to a definitive cause — Engineering will refine this.}
+mcp__claude_ai_Atlassian__createIssueLink:
+  cloudId: 06f73ca7-8f2c-4392-b40a-08288e9d0ba3
+  inwardIssueKey: RCA-NNNN       // the new RCA
+  outwardIssueKey: RED-NNNNNN     // related bug Jira
+  typeName: "Relates"             // id 10003 — "relates to" both directions
 ```
 
-### Section 8: Final Root Cause & Conclusions
-
-```
-**Final Root Cause & Conclusions:**
-[To be completed by Engineering team]
-```
-
-### Section 9: Action Items
-
-```
-**Action Items:**
-After updating the table below, ensure the tickets are linked with the `relates to` type.
-
-| Description                          | Type                    | Owner   | Ticket           |
-|--------------------------------------|-------------------------|---------|------------------|
-| {Action description}                 | Investigate/Prevent/Mitigate | @name   | <jira-ticket>    |
-| ...                                  | ...                     | ...     | ...              |
-```
-
-**Action item Type taxonomy** (pick one):
-- **Investigate** — research / analysis tasks ("Investigate CPU utilization patterns")
-- **Prevent** — preventative engineering changes ("Implement automatic recovery for X")
-- **Mitigate** — short-term mitigations ("Document manual restart procedure for support")
-
-Generate suggested action items from Jira PDF content keywords:
-
-| Keyword in Jira PDF | Suggested Action |
-|---|---|
-| `cpu` | Investigate CPU utilization patterns |
-| `audit` | Review audit logging configuration |
-| `restart` | Implement automatic recovery mechanisms |
-| (default) | Investigate root cause of reported issue |
-
-Owner / Ticket are placeholders (`@name`, `<jira-ticket>`) for Engineering to fill in.
-
-## Issue Links (Created Separately)
-
-After `createJiraIssue` returns, call `mcp__claude_ai_Atlassian__createIssueLink` for each:
-
-| Linked Issue | Link Type | Direction |
-|---|---|---|
-| Each related bug Jira (from Jira PDFs) | `Relates` | outward |
-| (Future) Each Zendesk ticket if Zendesk integration is wired | Custom integration link | n/a |
-
-Confirm link type names via `getIssueLinkTypes` on first run.
+Link **every** related ticket — those created during incident resolution OR afterward. Include external URLs (files, logs, procedures, Jira tickets) in the description / Slack field as relevant.
 
 ## Multi-Cluster Considerations
 
-When an incident spans multiple clusters (common for Azure ACRE):
+When an incident spans multiple clusters (typical for Azure ACRE incidents):
 
-- **Cluster ID custom field**: pass a comma-separated list
-- **Timeline**: each event references its cluster by name
-- **Summary**: enumerate clusters and regions ("affecting 4 Azure clusters across 3 regions")
-- **Resolution method per cluster**: distinguish in timeline ("Manual DMC restart" vs "Automatic VM freeze event")
+- `customfield_10516` (Cluster ID): all cluster names as separate labels
+- Description Timeline references each cluster by name in each row
+- Description Summary enumerates clusters and regions
+- Distinguish resolution method per cluster in Timeline rows ("Manual DMC restart" vs "Automatic VM freeze event")
+- Title can use ClusterID instead of customer name if multi-customer
 
-## Worked Example (Skeleton)
+## Azure-Specific Rule
+
+Per the Support team Jira creation doc: **for Azure (ACRE or AMR) RCAs, you always need a RED or MOD Bug Jira associated**. The skill should:
+
+1. Check the input Jira PDFs — if all are RCA Jiras and no Bug exists, flag this and refuse to create
+2. If a RED/MOD Bug is among the inputs, link it via `Relates`
+
+## Worked Example — `createJiraIssue` Payload
 
 For an incident with:
 - Customer: Azure
-- Date: 10/24/25
+- Date: 10/24/2025
 - Clusters: `prod110-europe-hdc-europe-cp102-titan2.northeurope`, `rediscluster-ktcsproda11.eastus2`
-- Regions: northeurope, eastus2
-- Component: DMC
+- Affected components: DMC, Azure integration
+- Product: Redis Software
+- Zendesk tickets: 146983, 146173
+- Related bugs: RED-172012, RED-172734
 
-Generated summary:
+```json
+{
+  "fields": {
+    "project":     { "key": "RCA" },
+    "issuetype":   { "id": "10590" },
+    "summary":     "Azure - RCA 10/24/2025",
+    "description": "**Summary:** DMC high-CPU utilization incident affecting 2 Azure clusters across 2 regions, leading to CPU exhaustion on ACRE nodes. One cluster resolved via manual DMC restart; the other via automatic VM freeze event. Initial analysis indicates potential correlation with audit logging configuration issues and BDB state machine updates. On-call engineers notified via #prod_incident Slack channel.\n\n---\n\n| **Date and Time _(UTC)_** | **Activity** |\n| --- | --- |\n| Oct-01-2025, 21:22 | DMC high CPU started on rediscluster-ktcsproda11.eastus2 |\n| Oct-03-2025, 04:26 | Manual DMC restart - Issue resolved |\n| Oct-08-2025, 01:03 | High CPU on csie-fnp-linx01-redis03.northeurope |\n| Oct-08-2025, 01:05 | Automatic VM freeze - Issue resolved |\n",
+    "labels": ["Azure", "ACRE", "dmc", "high_cpu", "Azure-Integration"],
+    "customfield_10469": "2025-10-01T21:22:00.000+0000",
+    "customfield_10470": "2025-10-17T22:35:00.000+0000",
+    "customfield_10475": "- [#146983](https://redislabs.zendesk.com/agent/tickets/146983)\n- [#146173](https://redislabs.zendesk.com/agent/tickets/146173)",
+    "customfield_10476": "[#prod_incident-20251024-azure_titan2_zd146983](https://app.slack.com/)",
+    "customfield_10490": "DMC high-CPU utilization with simultaneous BDB state machine updates and audit logging anomalies. Hypothesis: audit logging contention under load triggers state machine churn that the DMC cannot keep up with.",
+    "customfield_10467": "- <Add your final RCA and Conclusions here>\n- <Add your final RCA and Conclusions here>\n- <Add your final RCA and Conclusions here>\n- <Add your final RCA and Conclusions here>\n- <Add your final RCA and Conclusions here>",
+    "customfield_10478": "After updating the table below, ensure the tickets are linked with the `relates to` type.\n\n| Description | Type | Owner | Ticket |\n|---|---|---|---|\n| Investigate CPU utilization patterns | **Investigate** | @name | <jira-ticket> e.g: RED-999999 |\n| Review audit logging configuration | **Investigate** | @name | <jira-ticket> e.g: RED-999999 |\n| Implement automatic recovery for high-CPU events | **Prevent** | @name | <jira-ticket> e.g: RED-999999 |",
+    "customfield_10495": [{ "id": "11147" }, { "id": "11154" }],
+    "customfield_10516": ["prod110-europe-hdc-europe-cp102-titan2.northeurope", "rediscluster-ktcsproda11.eastus2"],
+    "customfield_10520": ["Azure"],
+    "customfield_10519": { "id": "11123" },
+    "customfield_10619": { "id": "23171" }
+  }
+}
+```
 
-> "DMC high-CPU utilization incident affecting 2 Azure clusters across 2 regions, leading to CPU exhaustion on ACRE nodes. The incident was resolved for one cluster/node with a manual DMC restart, while the other was resolved automatically by VM freeze. Initial analysis indicates potential correlation with audit logging configuration issues and BDB state machine updates."
+After `createJiraIssue` returns the new key (e.g., `RCA-NNN`):
+1. `createIssueLink` × N for each related bug (RED-172012, RED-172734) with type `Relates`
+2. Set Reporter to current user if not already
+3. Set Contributors to incident participants (ask user for emails/account IDs)
+4. Verify status is `Data Collection` (default)
+5. Notify user: "RCA-NNN created. Transition to `Root Cause and Action Items` after data entry confirmed complete."
 
-Generated labels: `Azure`, `ACRE`, `dmc`, `high_cpu`, `azure`
+## Slack Notification
 
-Generated Slack channel: `#prod-102425-azure`
+Per the R&D RCA process doc: changing RCA ticket status automatically posts to Slack [#root-cause-analysis](https://redis.slack.com/archives/C07U49XETM1). The skill doesn't need to post separately.
 
 ## Anti-patterns
 
-- **Don't write the Final Root Cause yourself.** That's Engineering's job after investigation. Use the `[To be completed by Engineering team]` placeholder.
-- **Don't link the RCA to itself.** Sanity-check issue link calls.
-- **Don't auto-transition** from "Data Collection" — leave the user in control of workflow state.
-- **Don't fabricate timestamps.** If the PDFs don't have specific times, use placeholder `MMM-DD-YYYY, HH:MM` and mark the row clearly so the TSE can fill in.
-- **Don't dump entire PDF contents** into the description. Extract relevant facts.
+- **Don't write the Final Root Cause** — Engineering owns it. Use the 5-bullet placeholder.
+- **Don't put structured content (root cause, action items, timeline) in the description body alone** — use the dedicated custom fields. Description is for narrative summary + timeline table only.
+- **Don't auto-transition past `Root Cause and Action Items`.** Engineering / Leadership control later states.
+- **Don't use `Support RCA` (16251)**. RCA-41 uses `RCA` (10590). Stay consistent.
+- **Don't fabricate timestamps.** If PDFs don't have specific times, use clear placeholders.
+- **Don't skip Azure prerequisite check.** If an Azure RCA is being created and no RED/MOD bug is in the input/related links, flag this and ask.
+- **Don't take over Reporter / Contributors from the template defaults.** Set Reporter to yourself (current user) and Contributors to the actual incident participants.
