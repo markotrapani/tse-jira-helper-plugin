@@ -1,0 +1,21 @@
+{
+  "name": "tse-jira-ticket-creation",
+  "version": "0.6.0",
+  "description": "TSE-focused Jira ticket creation for Redis Technical Support Engineers. Creates Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, and computes impact scores using the 8-130 model. Dry-run by default. Multi-project (RED/MOD/DOC/RDSC/RCA), sprint-blank, uses the claude.ai Atlassian MCP.",
+  "author": {
+    "name": "Marko Trapani",
+    "email": "marko.trapani@redis.com"
+  },
+  "homepage": "https://github.com/markotrapani/redis-tse-tools",
+  "repository": "https://github.com/markotrapani/redis-tse-tools",
+  "license": "MIT",
+  "keywords": [
+    "jira",
+    "redis",
+    "tse",
+    "support",
+    "zendesk",
+    "rca",
+    "atlassian"
+  ]
+}

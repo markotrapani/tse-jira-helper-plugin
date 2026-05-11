@@ -162,7 +162,7 @@ Confirm with `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` — sho
 
 ### 2. (Strongly recommended) Harness-level safety net in `~/.claude/settings.json`
 
-Add the 10 Atlassian write tools to your `permissions.ask` list. Even if the skill ever misreads "publish" intent, Claude Code will prompt you per call. See [SECURITY.md](../SECURITY.md) for the exact JSON snippet.
+Add the 10 Atlassian write tools to your `permissions.ask` list. Even if the skill ever misreads "publish" intent, Claude Code will prompt you per call. See [SECURITY.md](../../../SECURITY.md) for the exact JSON snippet.
 
 ## Safety
 
@@ -175,7 +175,7 @@ Add the 10 Atlassian write tools to your `permissions.ask` list. Even if the ski
 
 ## Related
 
-- **Skill:** [`skills/tse-jira-ticket-creation/`](../skills/tse-jira-ticket-creation/SKILL.md) — full reference docs in `references/`
-- **Harness safety:** [`SECURITY.md`](../SECURITY.md) — settings.json permission rule
-- **Complementary:** [`everything-claude-code/jira-integration`](../../everything-claude-code/skills/jira-integration/) + `/jira` for retrieving / commenting on / transitioning existing tickets
-- **Inspired by:** [`~/Downloads/marko-projects/jira-helper`](https://github.com/markotrapani/jira-helper) (Python CLI version that generates markdown rather than creating tickets directly)
+- **Skill:** [`../skills/tse-jira-ticket-creation/SKILL.md`](../skills/tse-jira-ticket-creation/SKILL.md) — full reference docs in `references/`
+- **Harness safety:** [`SECURITY.md`](../../../SECURITY.md) — settings.json permission rule (at marketplace root)
+- **Complementary:** `everything-claude-code/jira-integration` + `/jira` for retrieving / commenting on / transitioning existing tickets
+- **Inspired by:** [`markotrapani/jira-helper`](https://github.com/markotrapani/jira-helper) (Python CLI version that generates markdown rather than creating tickets directly)

@@ -73,7 +73,7 @@ The skill enters publish mode **only** when one of these is true:
 ### Two-layer protection
 
 1. **Skill-level (this document):** dry-run by default, explicit publish keyword required
-2. **Harness-level (`~/.claude/settings.json`):** the user should have `mcp__claude_ai_Atlassian__createJiraIssue` (and 9 other write tools) listed under `permissions.ask`. Even if this skill is misread, Claude Code will prompt the user before any write call fires. See [SECURITY.md](../../SECURITY.md) for the install snippet.
+2. **Harness-level (`~/.claude/settings.json`):** the user should have `mcp__claude_ai_Atlassian__createJiraIssue` (and 9 other write tools) listed under `permissions.ask`. Even if this skill is misread, Claude Code will prompt the user before any write call fires. See [SECURITY.md](../../../../SECURITY.md) for the install snippet.
 
 ### Dry-run output: preview file
 

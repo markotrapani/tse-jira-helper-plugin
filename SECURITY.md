@@ -61,7 +61,7 @@ To convert a dry-run into a publish, you must either:
 1. Invoke the slash command with the `--publish` flag, OR
 2. After reviewing the preview file, send a message containing the word **"publish"** referring to the preview (e.g., "publish this preview", "publish ~/tse-jira-previews/RED-bug-...md")
 
-**Implicit confirmations are not enough.** The skill is documented to reject `yes`, `go`, `looks good`, `proceed` as ambiguous and ask for a publish keyword explicitly. This rule is in the skill's [memory feedback file](https://github.com/markotrapani/tse-jira-helper-plugin) (a prior session bug led to this guardrail).
+**Implicit confirmations are not enough.** The skill is documented to reject `yes`, `go`, `looks good`, `proceed` as ambiguous and ask for a publish keyword explicitly. This rule is in the skill's [memory feedback file](https://github.com/markotrapani/redis-tse-tools) (a prior session bug led to this guardrail).
 
 ## Layer 3 — Audit trail
 
@@ -83,4 +83,4 @@ So even successful publishes leave a local record you can audit later.
 
 ## Reporting issues
 
-If you find a way to bypass the dry-run / publish-keyword rule, open an issue on [github.com/markotrapani/tse-jira-helper-plugin](https://github.com/markotrapani/tse-jira-helper-plugin) — the failure mode is worth documenting and patching.
+If you find a way to bypass the dry-run / publish-keyword rule, open an issue on [github.com/markotrapani/redis-tse-tools](https://github.com/markotrapani/redis-tse-tools) — the failure mode is worth documenting and patching.
