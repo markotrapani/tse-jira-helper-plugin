@@ -91,6 +91,7 @@ Read the matching reference file as the workflow demands — don't load all upfr
    - Environment (`customfield_10025`): **`Production`** (id 10007) — always for customer-originated tickets.
    - Product (`customfield_10026`): multi-select — pick `RS (Redis Software)` for ACRE/Software, `RCP(RV/Pro/Flexible)` for Cloud.
    - Reported Version/Build (`customfield_10056`): always add; comma-separated for multiple.
+   - **Seen by Customer/s (`customfield_10027`): ALWAYS REQUIRED when Environment=Production** — set to the customer name as a plain string. The Support docs call this "deprecated" but a project validation rule still requires it. Set this in *addition to* Affected Organizations, never instead of.
    - Affected Organizations (`customfield_10595`): customer name dropdown with **9,253+ options**. Resolution procedure:
      1. **Try exact match first.** Call `getJiraIssueTypeMetaWithFields` with `projectIdOrKey=RED`, `issueTypeId=10004`, and `maxResults=50`, `startAt=0`. Search the returned `customfield_10595.allowedValues` list for a case-insensitive substring match on the customer name.
      2. **If not in first page**, page through using `startAt` increments. **Cap at 5 pages (250 options total)** to avoid burning tokens — exact customer names usually surface in early pages alphabetically.
@@ -253,9 +254,38 @@ The skill supports filing into any project the user has access to. Rules:
 
 ## Description Formatting (ADF vs Markdown)
 
-`createJiraIssue` and `editJiraIssue` typically accept either ADF or markdown for description / textarea fields. **Try markdown first**; if rendering is off (e.g., tables don't render), convert to ADF.
+Two distinct rules — these are not the same thing:
 
-For Action Item tables (`customfield_10478`), markdown tables usually work. ADF is more reliable for nested formatting (bold "Investigate" / "Prevent" / "Mitigate" cells, red instruction line).
+### System `description` field — markdown is fine
+
+For the top-level `description` argument to `createJiraIssue` (or the system `description` field in `editJiraIssue`), pass markdown and set `contentFormat: "markdown"`. The MCP handles the conversion. Tables, headings, code blocks, links — all work.
+
+### Custom textarea fields — ADF required, strings rejected
+
+For any **custom textarea field** (`customfield_10374` Workaround, `customfield_10681` Impact Score details, `customfield_10063` RCA, and all the RCA narrative fields — `_10467`, `_10475`, `_10476`, `_10478`, `_10490`, `_11853`), the API requires Atlassian Document Format (ADF). A raw string returns:
+
+```
+"customfield_NNNNN": "Operation value must be an Atlassian Document (see the Atlassian Document Format)"
+```
+
+**Minimum viable ADF** for a one-line text value:
+
+```jsonc
+"customfield_10374": {
+  "type": "doc",
+  "version": 1,
+  "content": [
+    { "type": "paragraph",
+      "content": [ { "type": "text", "text": "Your text here." } ] }
+  ]
+}
+```
+
+For multi-line content, add more paragraph blocks. For tables/lists, use ADF table / orderedList / bulletList nodes. See [`references/jira-schema.md`](references/jira-schema.md) for the full list of textarea fields requiring ADF.
+
+### Comments — markdown is fine
+
+`addCommentToJiraIssue` accepts markdown via `contentFormat: "markdown"`. Use that for the impact-score breakdown comment.
 
 ## Safety Rules
 

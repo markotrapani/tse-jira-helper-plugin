@@ -151,6 +151,21 @@ Additional labels (add when applicable):
 
 **Always add the reported versions.** Multiple comma-separated: `"7.2.4, 6.0.2"`.
 
+### Seen by Customer/s (`customfield_10027`) — ALWAYS REQUIRED for Production tickets
+
+⚠️ **Critical validation rule** (verified live, caught in RED-196654 dry-run):
+
+> When `customfield_10025` (Environment) includes `Production`, the field `customfield_10027` (Seen by Customer/s) is **REQUIRED**. The project workflow rejects the create with `"Seen By Customer is required for Environment/s = Production"` if omitted.
+
+Per Support Confluence docs, this field is "replaced by Affected Organizations" — but the project validation rule is independent. **Set both:**
+
+| Field                            | fieldId             | Value                                    |
+|----------------------------------|---------------------|------------------------------------------|
+| Affected Organizations (canonical)| `customfield_10595` | `[{"id":"<resolved_id>"}]`               |
+| Seen by Customer/s (validation)  | `customfield_10027` | `"<customer_name>"` (plain string)       |
+
+Since TSE bugs are almost always for customer-originated `Environment=Production` issues, treat `customfield_10027` as **always required** — never optional. Set it even when Affected Organizations resolved cleanly. The two fields aren't mutually exclusive; setting both is the canonical approach.
+
 ### Affected Organizations (`customfield_10595`)
 
 Select customer name(s) from the dropdown. **This field replaces the old "Seen by Customer/s" field** per Support docs.

@@ -11,6 +11,69 @@ Verified via `getVisibleJiraProjects`, `getJiraProjectIssueTypesMetadata`, `getJ
 - [RCA Initiation and Data Collection Procedure](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) — RCA creation procedure
 - [RCA-41](https://redislabs.atlassian.net/browse/RCA-41) — RCA template ticket (clone this)
 
+## ⚠️ Known Validation Gotchas
+
+Two non-obvious gotchas verified against the live tenant (caught while filing RED-196654 on 2026-05-11). The skill must handle both proactively or `createJiraIssue` returns 400.
+
+### Gotcha 1 — Textarea custom fields require ADF, not strings
+
+The system `description` field accepts markdown via `contentFormat: "markdown"`. **But custom textarea fields reject raw strings.** Their values must be a full Atlassian Document Format (ADF) document.
+
+**Wrong** (returns `"Operation value must be an Atlassian Document"`):
+```jsonc
+"customfield_10374": "Manual config via Redis Cloud Console..."
+```
+
+**Right** (minimum viable ADF for one-line text):
+```jsonc
+"customfield_10374": {
+  "type": "doc",
+  "version": 1,
+  "content": [
+    { "type": "paragraph",
+      "content": [ { "type": "text", "text": "Manual config via Redis Cloud Console..." } ] }
+  ]
+}
+```
+
+**Fields that are textareas requiring ADF on redislabs.atlassian.net:**
+
+| fieldId             | Name                                  | Issue Type |
+|---------------------|---------------------------------------|------------|
+| `customfield_10374` | Workaround                            | RED Bug    |
+| `customfield_10681` | Impact Score details                  | RED Bug    |
+| `customfield_10063` | RCA (Azure post-save template)        | RED Bug    |
+| `customfield_10467` | Final Root Cause & Conclusions        | RCA        |
+| `customfield_10475` | Zendesk                               | RCA        |
+| `customfield_10476` | Slack                                 | RCA        |
+| `customfield_10478` | Action item(s)                        | RCA        |
+| `customfield_10490` | Initial Root Cause                    | RCA        |
+| `customfield_11853` | INFO PANEL                            | RCA        |
+
+Plain string fields (e.g. `customfield_10036` Zendesk ID/s, `customfield_10056` Reported Version/Build, `customfield_10027` Seen by Customer/s) are unaffected — they take strings.
+
+### Gotcha 2 — `Environment = Production` requires `Seen by Customer/s` (even though "deprecated")
+
+A project workflow validation rule requires `customfield_10027` (Seen by Customer/s) to be non-empty whenever `customfield_10025` (Environment) includes `Production` (id 10007).
+
+The Support Confluence doc says "Seen by Customer/s" has been replaced by `customfield_10595` (Affected Organizations). **But the validation rule is independent of the docs.** Setting `customfield_10595` alone does NOT satisfy the rule.
+
+**Wrong** (returns `"Seen By Customer is required for Environment/s = Production"`):
+```jsonc
+"customfield_10025": [{ "id": "10007" }],          // Production
+"customfield_10595": [{ "id": "23311" }],          // Aetna in Affected Orgs
+// customfield_10027 omitted because Support docs called it deprecated
+```
+
+**Right** — always set both when Production is in Environment/s:
+```jsonc
+"customfield_10025": [{ "id": "10007" }],
+"customfield_10595": [{ "id": "23311" }],          // canonical dropdown
+"customfield_10027": "Aetna"                       // string, satisfies validation
+```
+
+Since TSE bugs are almost always for customer-originated issues with `Environment=Production`, the skill should treat `customfield_10027` as **always required**, never optional, regardless of whether Affected Organizations resolved.
+
 ## Projects (Confirmed)
 
 | Key   | ID    | Name                | TSE Default Issue Type     |
