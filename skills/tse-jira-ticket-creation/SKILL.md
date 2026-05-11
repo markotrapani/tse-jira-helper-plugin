@@ -79,7 +79,10 @@ Read the matching reference file as the workflow demands — don't load all upfr
 4. **Auto-detect project** — apply rules in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) (RDSC → MOD → DOC → RED). State the detected project; let the user override.
 5. **Map fields** per [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md):
    - Issue type: `Bug` (id from [`references/jira-schema.md`](references/jira-schema.md))
-   - **Severity** (`customfield_10180`): **Ask the TSE** to confirm based on customer impact (Very High / High / Medium / Low). NOT computed from impact score. Default `2 - Medium`, flag for review.
+   - **Severity** (`customfield_10180`): **TSE-judged Jira severity** based on customer impact (`0 - Very High` / `1 - High` / `2 - Medium` / `3 - Low`). See [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) for the exact criteria per level.
+     - ⚠️ **DO NOT copy the Zendesk Severity field value.** Zendesk's Severity uses different categories (typically `Normal` / `High` / `Urgent`) that do **not** map 1:1 to Jira's `0/1/2/3` scale. Treat the Zendesk Severity as advisory at best — always ask the TSE for the Jira severity based on customer-impact assessment.
+     - **DO NOT derive severity from the impact score.** Impact score is for prioritization across tickets; Jira Severity is for describing customer impact of this ticket. Independent fields.
+     - Default `2 - Medium` (id `10329`), but always confirm with the TSE before creation.
    - **Priority** (system): `Medium` (default, id 3). PM sets later.
    - Status: leave default (To Do).
    - Assignee: leave default (Automatic).
@@ -88,7 +91,12 @@ Read the matching reference file as the workflow demands — don't load all upfr
    - Environment (`customfield_10025`): **`Production`** (id 10007) — always for customer-originated tickets.
    - Product (`customfield_10026`): multi-select — pick `RS (Redis Software)` for ACRE/Software, `RCP(RV/Pro/Flexible)` for Cloud.
    - Reported Version/Build (`customfield_10056`): always add; comma-separated for multiple.
-   - Affected Organizations (`customfield_10595`): customer name dropdown (use autocomplete). If no match, fall back to `Seen by Customer/s` (`customfield_10027`) free text and note.
+   - Affected Organizations (`customfield_10595`): customer name dropdown with **9,253+ options**. Resolution procedure:
+     1. **Try exact match first.** Call `getJiraIssueTypeMetaWithFields` with `projectIdOrKey=RED`, `issueTypeId=10004`, and `maxResults=50`, `startAt=0`. Search the returned `customfield_10595.allowedValues` list for a case-insensitive substring match on the customer name.
+     2. **If not in first page**, page through using `startAt` increments. **Cap at 5 pages (250 options total)** to avoid burning tokens — exact customer names usually surface in early pages alphabetically.
+     3. **If found**: set `customfield_10595` to `[{"id":"<resolved_id>"}]`.
+     4. **If NOT found**: skip `customfield_10595` entirely. Set the free-text fallback `customfield_10027` (Seen by Customer/s) to the customer name. Add the customer name as a label too. **Then in the post-create output, explicitly tell the TSE: "Affected Organizations was not auto-resolved — please pick `<customer>` from the dropdown in the browser before saving."**
+     5. **Never invent an ID.** If the search doesn't find an exact substring match, do not guess.
    - Zendesk ID/s (`customfield_10036`): numbers only, comma-separated.
    - Workaround (`customfield_10374`): if a WA exists, describe in a few words + complicated/simple.
    - Data loss / Data unavailable / Downtime (`customfield_10371` / `_10372` / `_10369`): Yes/No each — ask TSE.
@@ -118,7 +126,11 @@ Read the matching reference file as the workflow demands — don't load all upfr
        ------------------------------
        0. Incident short description:
        ```
-11. **Output**: new Jira key + browse URL (`https://redislabs.atlassian.net/browse/<KEY>`) + checklist of what still needs human input (Reporter confirmation, Attachments, Affected Organizations dropdown match).
+11. **Output**: new Jira key + browse URL (`https://redislabs.atlassian.net/browse/<KEY>`) + checklist of what still needs human input. Always include:
+    - Attachments: "Attach the Zendesk PDF and any logs in the browser — MCP `createJiraIssue` doesn't accept attachments."
+    - **If `customfield_10595` (Affected Organizations) was skipped** because no autocomplete match was found: "Open the ticket in the browser and select `<customer>` from the Affected Organizations dropdown."
+    - Reporter / Assignee: verify the auto-assignment looks correct.
+    - For Active-Active tickets: confirm the A-A mapping table in the description is accurate.
 
 ---
 

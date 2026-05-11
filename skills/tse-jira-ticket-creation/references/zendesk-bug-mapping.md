@@ -53,7 +53,16 @@ Leave default (Automatic). Don't pre-assign.
 
 ### Severity (`customfield_10180`)
 
-**Set by the TSE based on customer impact.** NOT computed from impact score. Values use the numeric prefix exactly as listed:
+**Set by the TSE based on customer impact.** Two important rules:
+
+1. **Severity is NOT computed from impact score.** They're independent fields with different purposes:
+   - **Impact Score** (`customfield_10585`, 8-130) — prioritization signal for R&D scheduling
+   - **Severity** (`customfield_10180`, 4-level) — how badly the customer is affected by this specific bug
+2. ⚠️ **Severity is NOT inherited from the Zendesk Severity field.** Zendesk's Severity uses different categories (typically `Normal` / `High` / `Urgent`) and doesn't map 1:1 to Jira's `0/1/2/3` scale. A Zendesk ticket marked `Normal` may correspond to a Jira `2 - Medium` *or* `3 - Low` depending on actual customer impact. Treat Zendesk Severity as advisory at best.
+
+Always ask the TSE for the Jira severity. If they haven't specified, default to `2 - Medium` and flag for review.
+
+Values use the numeric prefix exactly as listed (don't drop the `N - ` prefix when setting via API):
 
 | Value           | ID    | When                                                                                  |
 |-----------------|-------|---------------------------------------------------------------------------------------|
@@ -62,7 +71,7 @@ Leave default (Automatic). Don't pre-assign.
 | `2 - Medium`    | 10329 | Usability of specific features; RCA for cluster failure/bug; supportability enhancement (more impactful) |
 | `3 - Low`       | 10328 | Workaround exists; cosmetic bug (typo); supportability enhancement (less impactful) |
 
-The skill should ask the TSE to confirm Severity rather than infer it from keywords. If the TSE hasn't specified, default to `2 - Medium` and flag for review.
+API format: `"customfield_10180": { "id": "10329" }` (single-select option object).
 
 ### Data unavailable / Data loss / Downtime
 
@@ -144,9 +153,51 @@ Additional labels (add when applicable):
 
 ### Affected Organizations (`customfield_10595`)
 
-Select customer name(s) from the dropdown. **This field replaces the old "Seen by Customer/s" field.** Use autocomplete / option ID lookup — the field has 9,253+ options.
+Select customer name(s) from the dropdown. **This field replaces the old "Seen by Customer/s" field** per Support docs.
 
-If unable to match the customer name to a dropdown option, set `customfield_10027` (Seen by Customer/s, free text) as a fallback and note the discrepancy.
+The field has **9,253+ options** — enumerating them all is impractical for a single create call. Use this resolution procedure:
+
+#### Resolution procedure
+
+1. **Page through `allowedValues` looking for a match.** Call `getJiraIssueTypeMetaWithFields` with:
+   - `cloudId: 06f73ca7-8f2c-4392-b40a-08288e9d0ba3`
+   - `projectIdOrKey: RED` (or relevant project)
+   - `issueTypeId: 10004` (Bug)
+   - `maxResults: 50`
+   - `startAt: 0`, then `50`, then `100`, …
+
+   In each response, search `customfield_10595.allowedValues` for a **case-insensitive substring match** on the customer name.
+
+2. **Cap the search at 5 pages (~250 options).** Customer names usually surface in early alphabetical pages. Beyond that, the cost of token usage outweighs the benefit — fall through to the fallback.
+
+3. **If a match is found**:
+   ```jsonc
+   "customfield_10595": [{ "id": "<resolved_id>" }]   // single-select-from-list format
+   ```
+
+4. **If NO match is found** within the search cap:
+   - **Skip `customfield_10595` entirely** in the payload.
+   - **Set `customfield_10027` (Seen by Customer/s)** to the customer name as a free-text fallback. This field is deprecated per Support docs but still functional, and gives R&D a searchable customer reference.
+   - **Add the customer name as a label** (underscored if multi-word) so it's discoverable in JQL.
+   - **In the post-create output, explicitly tell the TSE**:
+     > "Affected Organizations was not auto-resolved from the dropdown. Please open the new ticket in the browser and select `<customer>` from the Affected Organizations dropdown manually before saving."
+
+5. **Never invent an option ID.** If substring search across the searched pages returns no match, do NOT guess based on similar names. The dropdown is canonical — wrong IDs route the ticket to the wrong account in CS reporting.
+
+#### Multi-customer
+
+If multiple customers are affected, repeat the procedure for each. Concatenate matched options into the array:
+
+```jsonc
+"customfield_10595": [
+  { "id": "<aetna_id>" },
+  { "id": "<cvs_id>" }
+]
+```
+
+#### Why not query the full list once?
+
+The field has ~9,253 entries. A full fetch (paginated to maxResults=50) is ~185 calls and burns a lot of tokens for a single field lookup. The 5-page cap is a pragmatic trade-off; the free-text fallback is reliable when alphabetical search misses.
 
 ### Zendesk ID (`customfield_10036`)
 
