@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Redis TSE-focused Jira tooling. Single-plugin marketplace.",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "plugins": [
     {
       "name": "tse-jira-ticket-creation",
       "source": ".",
       "description": "Create Redis Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, and compute impact scores. Sprint-optional, multi-project, uses claude.ai Atlassian MCP.",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "category": "support",
       "tags": ["jira", "redis", "tse", "zendesk", "rca"]
     }

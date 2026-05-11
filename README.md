@@ -53,6 +53,24 @@ cp -r tse-jira-helper-plugin/skills/tse-jira-ticket-creation ~/.claude/skills/
 cp tse-jira-helper-plugin/commands/tse-jira.md ~/.claude/commands/
 ```
 
+### ⚠️ Strongly recommended: harness-level safety net
+
+After installing, add the 10 Atlassian write tools to your `permissions.ask` list in `~/.claude/settings.json`. This ensures Claude Code will prompt before any write to Jira/Confluence, regardless of skill instructions.
+
+See [**SECURITY.md**](./SECURITY.md) for the exact JSON snippet and rationale.
+
+## Dry-run is the default
+
+**The Bug and RCA workflows do NOT write to Jira by default.** They produce a local markdown preview file at `~/tse-jira-previews/<project>-<workflow>-<timestamp>.md` that you review before publishing.
+
+To actually file:
+- Add `--publish` to the slash command, OR
+- Run a dry-run first, review the preview, then say "publish this preview"
+
+The Impact Score workflow is inherently read-only and doesn't have a publish step (it has a small follow-up to apply the score to a ticket, which counts as publish).
+
+See [SECURITY.md](./SECURITY.md) for the full safety model.
+
 ## Prerequisites
 
 The plugin uses the **claude.ai Atlassian MCP** (`mcp__claude_ai_Atlassian__*` tools) for all Jira calls. You must have it connected:
@@ -76,12 +94,17 @@ Expected to return a resource with URL `https://redislabs.atlassian.net` and id 
 ### Quick reference
 
 ```
+# Default: dry-run (writes preview file, no MCP writes)
 /tse-jira bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+]
 /tse-jira rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
 /tse-jira score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
+
+# Publish: actually fires MCP writes (still asks for confirmation)
+/tse-jira bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] --publish
+/tse-jira rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] --publish
 ```
 
-The first set of args is **required** (one or more). The `--` separator marks the start of **optional** supporting inputs.
+The first set of args is **required** (one or more). The `--` separator marks the start of **optional** supporting inputs. `--publish` enables publish mode (default is dry-run).
 
 ### Workflow 1 — Bug Jira from Zendesk
 
