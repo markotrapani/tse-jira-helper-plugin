@@ -76,13 +76,60 @@ The skill enters publish mode **only** when one of these is true:
 1. **Skill-level (this document):** dry-run by default, explicit publish keyword required
 2. **Harness-level (`~/.claude/settings.json`):** the user should have `mcp__claude_ai_Atlassian__createJiraIssue` (and 9 other write tools) listed under `permissions.ask`. Even if this skill is misread, Claude Code will prompt the user before any write call fires. See [SECURITY.md](../../../../SECURITY.md) for the install snippet.
 
-### Dry-run output: preview file
+### Dry-run output: dual preview files (.md + .html) — v0.9+
 
-Default location: `~/tse-jira-previews/<project>-<workflow>-<timestamp>.md`
+**Dry-run produces TWO files** alongside each other in `~/tse-jira-previews/`:
 
-Example: `~/tse-jira-previews/RED-bug-20260511T153000Z.md`
+| File | Purpose |
+|---|---|
+| `<project>-<workflow>-<timestamp>.md` | Markdown — for editing, diffing, version control, terminal review |
+| `<project>-<workflow>-<timestamp>.html` | **Jira-mimicking HTML preview** — opens in browser for visual review |
+
+Example pair:
+- `~/tse-jira-previews/RED-bug-20260511T153000Z.md`
+- `~/tse-jira-previews/RED-bug-20260511T153000Z.html`
 
 If `~/tse-jira-previews/` doesn't exist, create it (`mkdir -p`). User can override the directory by saying "preview to `<path>`".
+
+### Auto-open the HTML preview in the browser
+
+After writing both files, the skill should run:
+
+```bash
+open ~/tse-jira-previews/<...>.html
+```
+
+This launches the user's default browser to the rendered preview. Also print both file paths as clickable `file://` URLs in the terminal output:
+
+```
+✅ Preview written:
+   md  →  file:///Users/marko.trapani/tse-jira-previews/RED-bug-<ts>.md
+   html → file:///Users/marko.trapani/tse-jira-previews/RED-bug-<ts>.html  (auto-opened in browser)
+```
+
+If `open` fails (non-macOS or no default browser), just print the paths and let the user click them.
+
+### HTML template
+
+The skill renders the HTML using the structure in [`references/preview-template.html`](references/preview-template.html). That file is a complete self-contained Jira-mimicking template with:
+
+- A `## DRY-RUN PREVIEW` banner at the top with timestamp and skill version
+- A ticket-header section with the ticket-key placeholder (`RED-XXXXX [PREVIEW]`), summary, type, status, project, and canonical-jiras anchor
+- A two-column layout:
+  - **Main column**: Description body (full H2-sectioned content rendered as HTML), Comment to be posted, Issue Links to create, Pre-flight Checks panel, Publish CTA, Raw API Payloads in a `<details>` collapsible
+  - **Sidebar**: field rows grouped by section (Details / Component & Environment / Customer / Impact & Classification / Workaround / RCA Template Section 0 / Labels)
+- Embedded CSS (no external deps), dark-mode aware via `prefers-color-scheme`
+- Footer with source markdown path
+
+**The skill builds the .html by template-substituting the field values from its in-memory field map into the placeholder tokens in `preview-template.html`** (`{SUMMARY}`, `{DESCRIPTION_HTML}`, `{PRIORITY}`, etc.). Markdown body content (description, comment, workaround) must be converted to HTML inline (handle ## headings → `<h2>`, fenced code blocks → `<pre><code>`, tables → `<table>`, bulleted lists → `<ul><li>`, numbered lists → `<ol><li>`, inline code → `<code>`).
+
+### Preview file structure (.md)
+
+The .md file mimics what the Jira issue would look like, plus an appendix with the raw API payloads:
+
+```markdown
+# RED Bug Preview — <ISO timestamp>
+
 
 ### Preview file structure
 
@@ -292,7 +339,11 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - **If no canonical example fits**: pick the closest one and flag low confidence in the preview's pre-flight checks: `"Anchor: RED-XXXXX (closest match for {issue shape}) — review carefully"`. Suggest the user save the resulting Jira as a new canonical example after filing.
    - See [`references/zendesk-bug-mapping.md` → Description Body Template](references/zendesk-bug-mapping.md) for the full template and anti-patterns.
 7. **Preview** — Ask the user for severity confirmation if not provided. Resolve Affected Organizations via paginated search. Build the full payload structures (createJiraIssue, addCommentToJiraIssue, createIssueLink calls).
-8. **Dry-run by default** — Write the preview file to `~/tse-jira-previews/RED-bug-<timestamp>.md` (per the format in the "Mode" section above). Report the path to the user. **DO NOT call any MCP write tool yet.**
+8. **Dry-run by default** — Write **BOTH** preview files (v0.9+):
+   1. `~/tse-jira-previews/RED-bug-<timestamp>.md` — markdown per the "Mode" section above
+   2. `~/tse-jira-previews/RED-bug-<timestamp>.html` — Jira-mimicking HTML rendering using `references/preview-template.html` as the structural template, with field values + markdown content (description, comment, workaround) substituted into the placeholder tokens
+   3. Run `open ~/tse-jira-previews/RED-bug-<timestamp>.html` to launch the user's default browser (skip silently if `open` is unavailable / non-macOS)
+   4. Report **both** file paths as clickable `file://` URLs in the terminal output. **DO NOT call any MCP write tool yet.**
 9. **Wait for explicit publish keyword.** Acceptable: `--publish` flag in the original invocation, or a follow-up message containing the word "publish" referring to this preview. Implicit confirmations ("yes", "go", "looks good") are **NOT sufficient** — clarify.
 10. **On publish (and only on publish):**
     1. **Create** via `mcp__claude_ai_Atlassian__createJiraIssue` with `cloudId` + the mapped fields. Capture the new key.

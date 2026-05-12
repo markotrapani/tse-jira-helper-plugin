@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{TICKET_KEY_OR_PREVIEW} — {SUMMARY_FIRST_60_CHARS}</title>
+  <style>
+    /*
+      tse-jira-ticket-creation HTML preview template — Jira-mimicking layout.
+      Inspired by Atlassian's Jira issue view styling. Self-contained, no external CSS.
+      Dark-mode aware via prefers-color-scheme.
+    */
+    :root {
+      --color-bg: #ffffff;
+      --color-bg-elevated: #fafbfc;
+      --color-bg-code: #f4f5f7;
+      --color-text: #172b4d;
+      --color-text-muted: #6b778c;
+      --color-text-subtle: #7a869a;
+      --color-border: #ebeef1;
+      --color-border-strong: #dfe1e6;
+      --color-link: #0052cc;
+      --color-warning-bg: #fff3cd;
+      --color-warning-border: #ffc107;
+      --color-warning-text: #594300;
+      --color-success-bg: #e3fcef;
+      --color-success-text: #006644;
+      --color-danger-bg: #ffebe6;
+      --color-danger-text: #bf2600;
+      --color-info-bg: #deebff;
+      --color-info-text: #0747a6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-bg: #1d2125;
+        --color-bg-elevated: #22272b;
+        --color-bg-code: #2c3338;
+        --color-text: #b6c2cf;
+        --color-text-muted: #8c9bab;
+        --color-text-subtle: #738496;
+        --color-border: #38414a;
+        --color-border-strong: #454c54;
+        --color-link: #579dff;
+        --color-warning-bg: #533f04;
+        --color-warning-border: #ffc107;
+        --color-warning-text: #ffd966;
+        --color-success-bg: #1c3329;
+        --color-success-text: #7ee2b8;
+        --color-danger-bg: #3a1d1d;
+        --color-danger-text: #ff8f73;
+        --color-info-bg: #1c2b4a;
+        --color-info-text: #85b8ff;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { font-size: 14px; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.5;
+    }
+    a { color: var(--color-link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.9em; background: var(--color-bg-code); padding: 1px 5px; border-radius: 3px; }
+    pre { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; background: var(--color-bg-code); padding: 12px 16px; border-radius: 4px; overflow-x: auto; font-size: 0.85em; line-height: 1.45; border: 1px solid var(--color-border); }
+    pre code { background: transparent; padding: 0; }
+    h1, h2, h3, h4 { color: var(--color-text); font-weight: 600; }
+    h1 { font-size: 24px; margin: 0 0 8px 0; }
+    h2 { font-size: 18px; margin: 24px 0 12px 0; padding-bottom: 6px; border-bottom: 1px solid var(--color-border); }
+    h3 { font-size: 14px; margin: 20px 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+    h4 { font-size: 13px; margin: 16px 0 4px 0; color: var(--color-text-muted); }
+    table { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 0.9em; }
+    th, td { border: 1px solid var(--color-border); padding: 8px 12px; text-align: left; vertical-align: top; }
+    th { background: var(--color-bg-elevated); font-weight: 600; }
+    ul, ol { margin: 8px 0; padding-left: 24px; }
+    li { margin: 4px 0; }
+    blockquote { margin: 12px 0; padding: 8px 16px; background: var(--color-bg-elevated); border-left: 3px solid var(--color-border-strong); color: var(--color-text-muted); }
+    hr { border: none; border-top: 1px solid var(--color-border); margin: 24px 0; }
+
+    /* Layout primitives */
+    .dry-run-banner {
+      background: var(--color-warning-bg);
+      color: var(--color-warning-text);
+      border-bottom: 2px solid var(--color-warning-border);
+      padding: 10px 24px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .dry-run-banner strong { color: var(--color-warning-text); }
+    .dry-run-banner .timestamp { font-family: SFMono-Regular, Consolas, monospace; font-size: 0.85em; opacity: 0.8; }
+    .ticket-header {
+      padding: 16px 24px;
+      background: var(--color-bg-elevated);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .ticket-key { font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; }
+    .ticket-key .preview-flag { background: var(--color-warning-bg); color: var(--color-warning-text); padding: 1px 6px; border-radius: 3px; margin-left: 6px; font-weight: 600; }
+    .ticket-title { font-size: 22px; font-weight: 500; color: var(--color-text); margin: 0; }
+    .ticket-meta { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--color-text-muted); }
+
+    /* Two-column main layout */
+    .ticket-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) {
+      .ticket-layout { grid-template-columns: 1fr; }
+    }
+    .ticket-main { min-width: 0; }
+    .ticket-sidebar {
+      border-left: 1px solid var(--color-border);
+      padding-left: 24px;
+    }
+    @media (max-width: 900px) {
+      .ticket-sidebar { border-left: none; border-top: 1px solid var(--color-border); padding-left: 0; padding-top: 16px; }
+    }
+
+    /* Sidebar field rows */
+    .sidebar-section { margin-bottom: 24px; }
+    .field-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 13px;
+    }
+    .field-row:last-child { border-bottom: none; }
+    .field-label { color: var(--color-text-muted); font-weight: 500; }
+    .field-value { color: var(--color-text); word-break: break-word; }
+    .field-value.muted { color: var(--color-text-subtle); font-style: italic; }
+    .field-value code { font-size: 0.85em; }
+
+    /* Badges (priority/severity/status) */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 500;
+      vertical-align: middle;
+    }
+    .badge-status-todo { background: var(--color-border-strong); color: var(--color-text); }
+    .badge-status-inprogress { background: var(--color-info-bg); color: var(--color-info-text); }
+    .badge-status-closed { background: var(--color-success-bg); color: var(--color-success-text); }
+    .badge-priority-highest, .badge-priority-critical, .badge-priority-high { background: var(--color-danger-bg); color: var(--color-danger-text); }
+    .badge-priority-medium { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .badge-priority-low, .badge-priority-lowest { background: var(--color-bg-elevated); color: var(--color-text-muted); }
+    .badge-severity-0, .badge-severity-1 { background: var(--color-danger-bg); color: var(--color-danger-text); }
+    .badge-severity-2 { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .badge-severity-3 { background: var(--color-bg-elevated); color: var(--color-text-muted); }
+    .label-pill { display: inline-block; background: var(--color-info-bg); color: var(--color-info-text); padding: 2px 8px; border-radius: 12px; font-size: 11px; margin: 2px 4px 2px 0; }
+
+    /* Description body */
+    .description-body { font-size: 14px; line-height: 1.6; }
+    .description-body h2 { font-size: 16px; margin: 28px 0 10px 0; }
+    .description-body h3 { font-size: 13px; text-transform: none; letter-spacing: 0; margin: 16px 0 6px 0; color: var(--color-text); }
+
+    /* Comment block */
+    .comment-block {
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    .comment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* Issue links */
+    .issue-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      margin: 6px 0;
+      font-size: 13px;
+    }
+    .link-type-badge { background: var(--color-info-bg); color: var(--color-info-text); padding: 1px 8px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+
+    /* Pre-flight checklist */
+    .preflight-checks { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 4px; padding: 16px; margin: 12px 0; }
+    .preflight-checks ul { list-style: none; padding-left: 0; }
+    .preflight-checks li { padding: 4px 0; font-size: 13px; }
+    .preflight-checks li::before { content: "✅ "; margin-right: 4px; }
+    .preflight-checks li.warning::before { content: "⚠️ "; }
+    .preflight-checks li.error::before { content: "❌ "; }
+
+    /* Raw payloads (collapsible) */
+    details { margin: 12px 0; }
+    details summary { cursor: pointer; font-weight: 500; padding: 8px 0; color: var(--color-text-muted); font-size: 13px; }
+    details summary:hover { color: var(--color-text); }
+    details[open] summary { color: var(--color-text); }
+
+    /* Publish CTA */
+    .publish-cta {
+      background: var(--color-info-bg);
+      color: var(--color-info-text);
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 13px;
+    }
+    .publish-cta strong { color: var(--color-info-text); }
+    .publish-cta code { background: var(--color-bg); color: var(--color-text); }
+
+    /* Footer */
+    footer { padding: 16px 24px; border-top: 1px solid var(--color-border); color: var(--color-text-subtle); font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="dry-run-banner">
+  <div>
+    <strong>⚠️ DRY-RUN PREVIEW</strong> — Generated by <code>tse-jira-ticket-creation</code> v{SKILL_VERSION}. No MCP writes have occurred.
+  </div>
+  <div class="timestamp">{ISO_TIMESTAMP}</div>
+</div>
+
+<div class="ticket-header">
+  <div class="ticket-key">{PROJECT}-XXXXX <span class="preview-flag">PREVIEW</span></div>
+  <h1 class="ticket-title">{SUMMARY}</h1>
+  <div class="ticket-meta">
+    <span>📋 {TYPE}</span>
+    <span class="badge badge-status-todo">{STATUS}</span>
+    <span>📁 {PROJECT_NAME}</span>
+    <span>🔗 Anchor: <a href="#anchor-note">{CANONICAL_ANCHOR}</a></span>
+  </div>
+</div>
+
+<div class="ticket-layout">
+
+  <!-- ============ MAIN COLUMN ============ -->
+  <div class="ticket-main">
+
+    <h2>Description</h2>
+    <div class="description-body">
+      <!--
+        Render the markdown description body as HTML here.
+        Convert ## headings, paragraphs, bulleted/numbered lists, fenced code blocks,
+        tables, inline code, and links. Match the Description Body Template structure
+        from references/zendesk-bug-mapping.md.
+      -->
+      {DESCRIPTION_HTML}
+    </div>
+
+    <h2>Comment to be posted (after create)</h2>
+    <div class="comment-block">
+      <div class="comment-header">
+        <span>📝 Comment by Marko Trapani (auto-posted after createJiraIssue)</span>
+        <span>{ISO_TIMESTAMP}</span>
+      </div>
+      <div class="comment-body">
+        {COMMENT_HTML}
+      </div>
+    </div>
+
+    <h2>Issue Links to create (after create)</h2>
+    <div class="issue-links">
+      <!-- Repeat per link: -->
+      <div class="issue-link">
+        <span class="link-type-badge">{LINK_TYPE}</span>
+        <span>→</span>
+        <a href="https://redislabs.atlassian.net/browse/{LINKED_KEY}">{LINKED_KEY}</a>
+        <span style="color: var(--color-text-muted);">— {LINKED_SUMMARY}</span>
+      </div>
+    </div>
+
+    <h2>Pre-flight Checks</h2>
+    <div class="preflight-checks">
+      <ul>
+        <!-- One <li> per check; add class="warning" or "error" if not passed. -->
+        <li>{CHECK_ITEM}</li>
+      </ul>
+    </div>
+
+    <div class="publish-cta">
+      <strong>📤 To publish this preview:</strong> say <code>publish this preview</code> in Claude Code.
+      Implicit confirmations ("yes", "go", "looks good") are <strong>not</strong> sufficient — the word
+      <strong>publish</strong> must appear, referencing this file.
+    </div>
+
+    <details>
+      <summary>🔧 Raw API Payloads (click to expand)</summary>
+
+      <h4>createJiraIssue</h4>
+<pre><code>{CREATE_PAYLOAD_JSON}</code></pre>
+
+      <h4>addCommentToJiraIssue (post-create)</h4>
+<pre><code>{COMMENT_PAYLOAD_JSON}</code></pre>
+
+      <h4>createIssueLink × N (post-create)</h4>
+<pre><code>{LINK_PAYLOADS_JSON}</code></pre>
+    </details>
+
+  </div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <div class="ticket-sidebar">
+
+    <div class="sidebar-section">
+      <h3>Details</h3>
+      <div class="field-row">
+        <div class="field-label">Type</div>
+        <div class="field-value">{TYPE}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Priority</div>
+        <div class="field-value"><span class="badge badge-priority-medium">{PRIORITY}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Severity</div>
+        <div class="field-value"><span class="badge badge-severity-2">{SEVERITY}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Status</div>
+        <div class="field-value"><span class="badge badge-status-todo">{STATUS}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Reporter</div>
+        <div class="field-value">{REPORTER}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Assignee</div>
+        <div class="field-value muted">{ASSIGNEE}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Sprint</div>
+        <div class="field-value muted">{SPRINT}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Component & Environment</h3>
+      <div class="field-row">
+        <div class="field-label">Component</div>
+        <div class="field-value">{COMPONENT}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Environment/s</div>
+        <div class="field-value">{ENVIRONMENT}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Product/s</div>
+        <div class="field-value">{PRODUCT}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Reported Version</div>
+        <div class="field-value">{REPORTED_VERSION}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Customer</h3>
+      <div class="field-row">
+        <div class="field-label">Affected Orgs</div>
+        <div class="field-value">{AFFECTED_ORGS}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Seen by Customer/s</div>
+        <div class="field-value">{SEEN_BY}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Zendesk ID/s</div>
+        <div class="field-value"><code>{ZENDESK_IDS}</code></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">ICM ID/s</div>
+        <div class="field-value muted">{ICM_IDS}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Impact & Classification</h3>
+      <div class="field-row">
+        <div class="field-label">Impact Score</div>
+        <div class="field-value">{IMPACT_SCORE} <span class="badge badge-severity-2">{IMPACT_BAND}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Found By</div>
+        <div class="field-value">{FOUND_BY}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Issue Source</div>
+        <div class="field-value">{ISSUE_SOURCE}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Data Loss</div>
+        <div class="field-value">{DATA_LOSS}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Data Unavailable</div>
+        <div class="field-value">{DATA_UNAVAIL}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Downtime</div>
+        <div class="field-value">{DOWNTIME}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Workaround</h3>
+      <div class="comment-block" style="margin: 0; font-size: 13px;">
+        {WORKAROUND_HTML}
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>RCA Template (Section 0)</h3>
+      <div class="field-row" style="grid-template-columns: 1fr; gap: 4px;">
+        <div class="field-label">0. Incident short description:</div>
+        <div class="field-value">{RCA_SECTION_0}</div>
+      </div>
+      <div class="field-row muted" style="grid-template-columns: 1fr;">
+        <div class="field-label" style="color: var(--color-text-subtle);">Sections 1-5 left as placeholders for Engineering / PM.</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Labels</h3>
+      <div>
+        <!-- repeat per label: -->
+        <span class="label-pill">{LABEL}</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<footer>
+  Preview generated by <a href="https://github.com/markotrapani/redis-tse-tools">tse-jira-ticket-creation</a> v{SKILL_VERSION}.
+  Source markdown: <code>{MD_PATH}</code> · This HTML: <code>{HTML_PATH}</code>
+</footer>
+
+</body>
+</html>

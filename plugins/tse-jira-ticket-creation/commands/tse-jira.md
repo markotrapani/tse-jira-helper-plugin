@@ -1,5 +1,5 @@
 ---
-description: Create Redis Jira tickets as a TSE — Bug from Zendesk PDFs, RCA by cloning RCA-41, or impact score estimation. Defaults to DRY-RUN (writes preview file, no MCP writes). Use --publish to actually file. Aligned with Redis CS Support team Confluence standards.
+description: Create Redis Jira tickets as a TSE — Bug from Zendesk PDFs, RCA by cloning RCA-41, or impact score estimation. Defaults to DRY-RUN (writes .md + Jira-styled .html previews, no MCP writes). Use --publish to actually file. Aligned with Redis CS Support team Confluence standards.
 argument-hint: <bug|rca|score> <required-inputs>+ [-- <optional-inputs>+] [--publish]
 ---
 
@@ -29,7 +29,8 @@ Shortcut for the `tse-jira-ticket-creation` skill. **Defaults to dry-run** — g
 What it does:
 1. Reads PDFs / fetches live Jiras
 2. Computes impact score, auto-detects fields, resolves dropdowns
-3. **Writes a markdown preview to `~/tse-jira-previews/<project>-<workflow>-<ISO timestamp>.md`**
+3. **Writes BOTH a markdown preview AND a Jira-styled HTML preview** to `~/tse-jira-previews/<project>-<workflow>-<ISO timestamp>.{md,html}` (v0.9+)
+4. **Auto-opens the HTML preview in your default browser** (`open <file.html>` on macOS)
 4. Reports the path. Stops. **No MCP writes happen.**
 
 What it does NOT do:
