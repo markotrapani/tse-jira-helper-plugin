@@ -43,6 +43,7 @@ Read the matching reference file as the workflow demands — don't load all upfr
 - [`references/impact-score-model.md`](references/impact-score-model.md) — Full 6-component scoring model (P1-P5 definitions, ARR tiers, SLA thresholds, multiplier rules) per [DevOps page 4267671553](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553). Read for any score-related work.
 - [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) — Bug filing field-by-field rules per [CS page 3785981958](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958). Read for the Bug workflow.
 - [`references/rca-template.md`](references/rca-template.md) — RCA filing per [DevOps page 4575690753](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) and RCA-41. Read for the RCA workflow.
+- [`references/canonical-jiras/`](references/canonical-jiras/) — **⭐ STRUCTURED EXTRACTS OF REAL JIRAS.** Before drafting any new ticket description, scan this directory for the closest matching example (by issue type + domain) and **mirror its H2 section structure**. The Confluence docs describe field rules; canonical-jiras describe description style. Both are needed. See the directory's `README.md` for the current index.
 
 ## When to Activate
 
@@ -261,23 +262,26 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
      4. **If NOT found**: skip `customfield_10595` entirely. Set the free-text fallback `customfield_10027` (Seen by Customer/s) to the customer name. Add the customer name as a label too. **Then in the post-create output, explicitly tell the TSE: "Affected Organizations was not auto-resolved — please pick `<customer>` from the dropdown in the browser before saving."**
      5. **Never invent an ID.** If the search doesn't find an exact substring match, do not guess.
    - Zendesk ID/s (`customfield_10036`): numbers only, comma-separated.
-   - Workaround (`customfield_10374`): if a WA exists, describe in a few words + complicated/simple.
+   - **Found By (`customfield_10115`)**: single-select. TSE default `Prod/Customer` (id 10149). ⭐ NEW in v0.7
+   - **Issue source (`customfield_10177`)**: single-select. TSE default `Product Bug` (id 10322). ⭐ NEW in v0.7
+   - **RCA template (`customfield_10063`)**: ADF with the 6-section template populated. **NOT Azure-only — populate on EVERY bug.** Section 0 filled with one-line customer-readable description, sections 1-5 left as placeholders. ⭐ FIXED classification in v0.7
+   - Workaround (`customfield_10374`): if a WA exists, multi-paragraph + code-block ADF. See [`references/zendesk-bug-mapping.md` → Workaround section](references/zendesk-bug-mapping.md).
    - Data loss / Data unavailable / Downtime (`customfield_10371` / `_10372` / `_10369`): Yes/No each — ask TSE.
    - Event Status (`customfield_10373`): set to `workaround implemented` if WA in place.
    - Major Prod Channel (`customfield_10370`): Slack link if Major prod event.
    - Metrics (`customfield_10375`): Grafana link if available.
    - Impact Score (`customfield_10585`): numeric final score.
    - ICM ID/s (`customfield_14258`): for AMR — Azure IcM incident IDs.
-   - **Labels**: always include `CS` or `Support`. Add `e2e_ta_coverage` if e2e-testable. For Azure: `Azure-Integration` + (`AMR` or `ACRE`); add `Azure_RCA_req` if an RCA is needed.
-6. **Construct Description** with the structure in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md):
-   - Symptom statement
-   - **Customer expectations (Fix / RCA / Information / Workaround)** — required per Support docs
-   - Cluster, Region, Product
-   - Reporter (Zendesk #)
-   - Details (extracted from Zendesk thread; ≤ ~2000 chars)
-   - For Active-Active incidents: A-A mapping table
-   - Log references in `cluster_name, node_id, shard_id` format
-   - Related Jira links (if any)
+   - **Labels**: 2-3 max. Required: one of `CS` or `Support`. Add 1-2 domain tags. For Azure: `Azure-Integration` + (`AMR` or `ACRE`); add `Azure_RCA_req` if an RCA is needed. ⭐ Tightened in v0.7 — see [`references/zendesk-bug-mapping.md` → Labels section](references/zendesk-bug-mapping.md).
+6. **Construct Description** — **Anchor to a canonical Jira first.** ⭐ MAJOR CHANGE in v0.7
+   - Scan [`references/canonical-jiras/`](references/canonical-jiras/) for the closest match by issue type + domain (encryption, modules, Azure, A-A, support tooling, cm_server, auth, etc.)
+   - **Mirror the H2 section structure** from the chosen canonical example. Use H2 sections like Summary / Root Cause / Customer Impact / Steps to Reproduce / Expected / Actual / Evidence from Support Case / Workaround (heading only) / Suggested Fix / Related Code Paths / Support Package Reference — exactly which sections depend on the canonical pick.
+   - **Do NOT** add a flat "**Label:** value" prefix block at the top. Customer / cluster / subscription / BDB / product data lives ONLY in fields.
+   - For Active-Active incidents: include the A-A mapping table inside `## Evidence from Support Case`.
+   - Log references in `cluster_name, node_id, shard_id` format inside `## Evidence from Support Case`.
+   - Related Jira links inside `## Related Jiras` (if any).
+   - **If no canonical example fits**: pick the closest one and flag low confidence in the preview's pre-flight checks: `"Anchor: RED-XXXXX (closest match for {issue shape}) — review carefully"`. Suggest the user save the resulting Jira as a new canonical example after filing.
+   - See [`references/zendesk-bug-mapping.md` → Description Body Template](references/zendesk-bug-mapping.md) for the full template and anti-patterns.
 7. **Preview** — Ask the user for severity confirmation if not provided. Resolve Affected Organizations via paginated search. Build the full payload structures (createJiraIssue, addCommentToJiraIssue, createIssueLink calls).
 8. **Dry-run by default** — Write the preview file to `~/tse-jira-previews/RED-bug-<timestamp>.md` (per the format in the "Mode" section above). Report the path to the user. **DO NOT call any MCP write tool yet.**
 9. **Wait for explicit publish keyword.** Acceptable: `--publish` flag in the original invocation, or a follow-up message containing the word "publish" referring to this preview. Implicit confirmations ("yes", "go", "looks good") are **NOT sufficient** — clarify.
@@ -285,11 +289,7 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
     1. **Create** via `mcp__claude_ai_Atlassian__createJiraIssue` with `cloudId` + the mapped fields. Capture the new key.
     2. **Add a comment** with the impact-score 6-component breakdown table via `mcp__claude_ai_Atlassian__addCommentToJiraIssue` (markdown content format is fine for comments).
     3. **Link related Jiras** (if any related Jira PDFs/keys were provided): call `mcp__claude_ai_Atlassian__createIssueLink` with type `Relates` (id 10003) for each.
-    4. **For Azure tickets** (labels include `ACRE` or `AMR`): `editJiraIssue` to populate `customfield_10063` (RCA) with the Azure Incident Short Description template:
-       ```
-       ------------------------------
-       0. Incident short description:
-       ```
+    4. **RCA template is populated on initial create** (not post-save) — see step 5's RCA template bullet. Azure ACRE/AMR tickets get the same 6-section template; section 0 is the only TSE-filled section at file time, and the customer-facing automation reads it for Azure tickets specifically.
     5. **Append to the preview file** an "Actual API responses" section showing the new key, comment id, and link statuses — so the preview becomes the post-create audit record.
 11. **Output**: new Jira key + browse URL (`https://redislabs.atlassian.net/browse/<KEY>`) + path to the (now post-create) preview file + checklist of what still needs human input. Always include:
     - Attachments: "Attach the Zendesk PDF and any logs in the browser — MCP `createJiraIssue` doesn't accept attachments."

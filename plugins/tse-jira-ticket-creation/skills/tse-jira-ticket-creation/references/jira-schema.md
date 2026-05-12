@@ -11,6 +11,47 @@ Verified via `getVisibleJiraProjects`, `getJiraProjectIssueTypesMetadata`, `getJ
 - [RCA Initiation and Data Collection Procedure](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) — RCA creation procedure
 - [RCA-41](https://redislabs.atlassian.net/browse/RCA-41) — RCA template ticket (clone this)
 
+## RCA Template Block (`customfield_10063`)
+
+**Populate this on every bug** — not just Azure tickets. This was corrected in v0.7 after seeing RED-194253 (a non-Azure cert-chain bug) with the full template populated.
+
+The textarea field accepts a string. The template:
+
+```
+------------------------------
+0. Incident short description: <TSE fills in: one-line customer-readable description>
+1. Bug Description:
+2. Which components impacted by this bug?
+3. What was fixed?
+4. Reproduction steps?
+5. Public Blocker Description:
+------------------------------
+```
+
+**TSE responsibility at file time:**
+
+- **Section 0** — fill in immediately with a one-line customer-readable description. For Azure ACRE/AMR tickets, this is critical because customer-facing automation reads section 0. For non-Azure tickets, still fill it in.
+- **Sections 1-5** — leave as placeholders. Engineering / PM fills these during triage and dev.
+
+**ADF format** — textarea custom fields require ADF (per the Known Validation Gotchas section below):
+
+```jsonc
+"customfield_10063": {
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {"type": "paragraph", "content": [{"type": "text", "text": "------------------------------"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "0. Incident short description: <one-liner>"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "1. Bug Description:"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "2. Which components impacted by this bug?"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "3. What was fixed?"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "4. Reproduction steps?"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "5. Public Blocker Description:"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "------------------------------"}]}
+  ]
+}
+```
+
 ## ⚠️ Known Validation Gotchas
 
 Two non-obvious gotchas verified against the live tenant (caught while filing RED-196654 on 2026-05-11). The skill must handle both proactively or `createJiraIssue` returns 400.
@@ -138,7 +179,9 @@ Source: `getJiraIssueTypeMetaWithFields` (cloudId, projectIdOrKey=RED, issueType
 | Metrics                   | `customfield_10375`   | string           | **Grafana link** (per Support docs) |
 | ICM ID/s                  | `customfield_14258`   | string           | Azure IcM incident IDs (for AMR) |
 | Seen by Customer/s        | `customfield_10027`   | string           | **Deprecated** per Support docs — use Affected Organizations instead |
-| RCA                       | `customfield_10063`   | string           | Linked RCA key. **Azure-specific**: after save, populate with `------------------------------\n0. Incident short description:\n` template |
+| RCA                       | `customfield_10063`   | string (textarea) | **Universal 6-section template — populate on EVERY bug, not Azure-specific.** See "RCA Template Block" below. |
+| Found By                  | `customfield_10115`   | option (single)  | TSE default `Prod/Customer` (id 10149). Values: Manual testing (10147) / Automation (10148) / **Prod/Customer (10149)** |
+| Issue source              | `customfield_10177`   | option (single)  | TSE default `Product Bug` (id 10322). Values: **Product Bug (10322)** / Test Code (10323) |
 | RCA Request Date          | `customfield_10522`   | date             | YYYY-MM-DD when RCA requested |
 | Sprint                    | `customfield_10010`   | array            | **Leave blank** per Support docs |
 | Target Version            | `customfield_10423`   | option           | Restricted list — usually leave for R&D |

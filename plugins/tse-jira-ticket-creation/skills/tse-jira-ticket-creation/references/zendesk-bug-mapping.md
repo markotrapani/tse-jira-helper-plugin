@@ -4,6 +4,15 @@
 
 Real field IDs and allowed values: see [`jira-schema.md`](./jira-schema.md). Don't speculate; that file is verified against the live Jira tenant.
 
+## ⚠️ Anchor to a canonical Jira first
+
+**Before drafting a new bug description, read the most relevant canonical Jira example in [`canonical-jiras/`](./canonical-jiras/).** That directory contains structured extracts of real Redis Jira tickets — they show how description bodies *should look* in practice. The Confluence guide describes which fields to fill; the canonical examples model the structure.
+
+Current canonical bug example:
+- [`canonical-jiras/RED-194253-bug-cert-chain.md`](./canonical-jiras/RED-194253-bug-cert-chain.md) — code-level bug, multi-component infra, with engineering investigation present
+
+If no canonical example fits the new bug exactly, pick the closest one and flag low confidence in the preview output.
+
 ## Zendesk PDF Anatomy
 
 Standard Redis Zendesk PDF filename: `redislabs.zendesk.com_tickets_<TICKET_ID>_print.pdf`
@@ -93,7 +102,37 @@ Only allowed value: `workaround implemented` (id 10705). Set if a WA is in place
 
 ### Workaround (`customfield_10374`)
 
-If a workaround exists, describe it in a few words. Specify **complicated vs simple** implementation.
+If a workaround exists, describe it in the **Workaround custom field** with a multi-paragraph + code-block ADF structure. The description body has a `## Workaround` H2 heading only — no content, since the content lives in the field.
+
+**Pattern** (per RED-194253's Workaround field):
+
+```
+<One-line statement of what to do, ending in colon>:
+
+<code block with commands or config>
+
+<Optional caveat paragraph explaining downsides / when this stops working>
+```
+
+**ADF skeleton:**
+
+```jsonc
+"customfield_10374": {
+  "type": "doc",
+  "version": 1,
+  "content": [
+    { "type": "paragraph",
+      "content": [{ "type": "text", "text": "<lead-in sentence ending in colon>:" }] },
+    { "type": "codeBlock",
+      "attrs": { "language": "bash" },
+      "content": [{ "type": "text", "text": "<commands / config here>" }] },
+    { "type": "paragraph",
+      "content": [{ "type": "text", "text": "<caveat paragraph>" }] }
+  ]
+}
+```
+
+For workarounds without code, use just paragraph blocks. Specify **complicated vs simple** implementation as part of the lead-in or caveat.
 
 ### Metrics (`customfield_10375`)
 
@@ -137,15 +176,46 @@ For **log references**: always mention `cluster_name, node_id, shard_id` in that
 
 ### Labels (`labels`)
 
-**Always include one of `CS` or `Support`** (TSE-team identifying tags — Support docs use these as written).
+**Keep labels minimal — 2 to 3 max.** Per RED-194253 (canonical example), real bugs use just 2 labels (`Encryption, Support`). Don't sprawl.
 
-Additional labels (add when applicable):
-- `e2e_ta_coverage` — if the issue could be caught with e2e tests
-- **Azure (ACRE/AMR)**:
-  - `Azure-Integration` (always for Azure tickets)
-  - `AMR` if Active-Active Multi-Region
-  - `ACRE` if Azure Cache for Redis Enterprise
-  - `Azure_RCA_req` if an RCA is needed from R&D
+**Required:**
+- One of `CS` or `Support` — TSE-team identifying tag
+
+**Plus 1-2 domain tags** matching the bug's primary subject:
+- For Azure (ACRE/AMR): `Azure-Integration` + (`AMR` or `ACRE`)
+- For specific subsystems: `Encryption`, `Cluster`, `Replication`, `terraform`, etc.
+
+**Optional / situational:**
+- `Azure_RCA_req` — if an RCA is needed from R&D for an Azure ticket
+- `e2e_ta_coverage` — ONLY add if the user explicitly asks. Don't default-add this.
+
+**Anti-patterns:**
+- Don't add 5+ labels just because they could apply. The first 2-3 carry the routing signal.
+- Don't add `terraform-provider` AND `terraform` — pick one.
+- Don't restate facts already in custom fields (e.g., don't add `production` as a label — that's `customfield_10025`).
+
+### Found By (`customfield_10115`)
+
+Single-select. **TSE default: `Prod/Customer`** (id `10149`).
+
+| Value             | ID    | When                                                  |
+|-------------------|-------|-------------------------------------------------------|
+| Manual testing    | 10147 | Internal manual QA caught it                          |
+| Automation        | 10148 | Internal automation/test suite caught it              |
+| **Prod/Customer** | 10149 | **Default for TSE-filed bugs** — customer reported it |
+
+API format: `"customfield_10115": { "id": "10149" }`.
+
+### Issue source (`customfield_10177`)
+
+Single-select. **TSE default: `Product Bug`** (id `10322`).
+
+| Value           | ID    | When                                          |
+|-----------------|-------|-----------------------------------------------|
+| **Product Bug** | 10322 | **Default** — actual defect in Redis product |
+| Test Code       | 10323 | The bug is in test code, not the product     |
+
+API format: `"customfield_10177": { "id": "10322" }`.
 
 ### Reported Version/Build (`customfield_10056`)
 
@@ -231,21 +301,31 @@ The numeric final score (8–130). See [`impact-score-model.md`](./impact-score-
 
 Per Support docs, impact score should be **filled by the team leader of the reporting team**. The skill can compute and propose, but flag this for confirmation.
 
-## Azure-Specific Post-Save Step
+## RCA Template Block (`customfield_10063`) — Universal, NOT Azure-only
 
-For all Azure tickets (ACRE or AMR), **after the Jira is saved**, fill the `customfield_10063` (RCA) field with this Incident Short Description template:
+**Populate this on EVERY bug.** This was reclassified in v0.7 after seeing RED-194253 (non-Azure cert-chain bug) with the full template populated.
+
+Send as ADF on the initial `createJiraIssue` payload (not a post-save step):
 
 ```
 ------------------------------
-0. Incident short description:
+0. Incident short description: <one-line customer-readable description>
+1. Bug Description:
+2. Which components impacted by this bug?
+3. What was fixed?
+4. Reproduction steps?
+5. Public Blocker Description:
+------------------------------
 ```
 
-This is the only description Azure automated reports have to go on aside from the title, so it must be populated from the onset, even before other RCA details are known.
+**TSE responsibility at file time:**
 
-The skill should:
-1. Create the Jira with the regular field set
-2. Detect "Azure" / "AMR" / "ACRE" in the labels or content
-3. As a follow-up call, `editJiraIssue` to populate `customfield_10063` with the template
+- **Section 0** — fill in with a one-line customer-readable description. For Azure ACRE/AMR tickets, this is critical because customer-facing automation reads section 0. For non-Azure tickets, still fill it in so the field isn't a wall of placeholder text.
+- **Sections 1-5** — leave as placeholders. Engineering / PM fills them during triage and dev.
+
+**ADF format** — see [`jira-schema.md` → "RCA Template Block"](./jira-schema.md) for the exact ADF document structure.
+
+**No post-save edit needed** — the template is part of the initial create payload. If for some reason the create doesn't include it, fall back to an `editJiraIssue` follow-up.
 
 ## Auto-detection details
 
@@ -277,39 +357,98 @@ Match if subject contains "docs", "documentation", "redis.io", "broken link" wit
 
 Everything else. Redis Software (Enterprise / ACRE) / Redis Cloud operational issues, cluster behavior, DMC/proxy, replication, ACL, etc.
 
-## Description Body Template (Suggested)
+## Description Body Template
 
-```
-{Symptom statement — what's broken, where, when}
+**Anchored to [`canonical-jiras/RED-194253-bug-cert-chain.md`](./canonical-jiras/RED-194253-bug-cert-chain.md).** Use H2 sections, not a flat label-prefix block. Customer/cluster/subscription/BDB data lives **only** in custom fields — do NOT duplicate them as bolded prefix lines in the description.
 
-**Customer expectations:** {Fix / RCA / Information / Workaround}
-**Cluster / Region:** {cluster_name} / {region}
-**Product:** {Redis Software | Redis Cloud | Azure Cache for Redis | RDI}
-**Reported by:** {customer_name} (Zendesk #{ticket_id})
+```markdown
+## Summary
 
-### Details
+{Single paragraph statement of the problem. Start with the customer-visible symptom,
+then narrow to the technical cause hypothesis if known. Reference specific subsystems/
+functions affected. Keep under ~150 words.}
 
-{original Zendesk description content — trimmed to relevant parts}
+## Root Cause                                    [OPTIONAL]
 
-### Log References
+{Only include if TSE+eng have a hypothesis. Code snippets in fenced blocks. Reference
+specific files / functions / line numbers. Use bullets / numbered lists for steps in
+the broken logic.}
 
-| cluster_name | node_id | shard_id | Note |
-|--------------|---------|----------|------|
-| ...          | ...     | ...      | ...  |
+## Customer Impact
 
-### A-A Mapping (Active-Active only)
+{Bullet list. Each bullet = a concrete observable behavior.}
+- ...
 
-| Customer Side | Redis Internal |
-|---------------|----------------|
-| ...           | ...            |
+## Steps to Reproduce
 
-### Zendesk Reference
+{Numbered list. Each step = concrete action. Sub-steps allowed where setup is complex.}
+1. ...
+
+## Expected Behavior
+
+{One short paragraph — what should happen.}
+
+## Actual Behavior
+
+{One short paragraph — what does happen.}
+
+## Evidence from Support Case
+
+{Concrete artifacts: file contents, log excerpts, config snippets, output dumps. Use
+fenced code blocks. Use bolded subheaders if you have multiple evidence types.}
+
+**Certificate Chain Uploaded** (...):
+    <fenced or indented block with the content>
+
+**trusted_ca.pem Contents:**
+    <fenced or indented block>
+
+## Workaround
+
+(see Workaround field — `customfield_10374`)
+
+## Suggested Fix                                 [OPTIONAL]
+
+{Short paragraph or two with the proposed code/behavior change. Only when TSE+eng
+have a hypothesis.}
+
+## Related Code Paths                            [OPTIONAL]
+
+{Bulleted list of file paths with function names + line numbers. Only when engineering
+analysis is present.}
+
+## Pending Information                           [OPTIONAL]
+
+{Outstanding requests from the customer or open questions for triage.}
+- ...
+
+## Related Jiras                                 [OPTIONAL]
+
+{Linked tickets with one-line context. Issue links will also be created separately
+via createIssueLink — this section is for human readability.}
+- RED-XXXXX — {short context}
+
+## Zendesk Reference
 
 - Ticket: https://redislabs.zendesk.com/agent/tickets/{ticket_id}
-- PDF: {attachment_name}
 ```
 
-Keep description under ~2000 chars when possible.
+### Rules
+
+- **No bolded `Label: value` prefix block** at the top. Customer name, cluster/region, subscription, BDB IDs, product all live in fields. Per RED-194253 anchor.
+- **No "Customer expectations:" line** in the description body. The Confluence guide says to include customer expectations, but the canonical anchor (RED-194253) doesn't have a literal line — the expectation is implicit through structure (presence of "Suggested Fix" = fix wanted; presence of bug template populated = engineering investigation requested).
+- **Sections are optional unless marked otherwise.** A TSE-filed ticket at file-time typically has: Summary, Customer Impact, Steps to Reproduce, Expected, Actual, Evidence, Workaround (heading only), Pending Information, Zendesk Reference. The optional sections (Root Cause, Suggested Fix, Related Code Paths) appear when engineering work has happened.
+- **Code/config inline** uses fenced code blocks with language hints when possible (` ```bash `, ` ```python `).
+- **Numbered & bulleted lists** are the dominant body format. Plain prose is for Summary, Expected Behavior, Actual Behavior, and short paragraphs in other sections.
+- **Active-Active mapping table** goes inside `## Evidence from Support Case` as a sub-table (not its own H2).
+- **Log references** in `cluster_name, node_id, shard_id` format inside `## Evidence from Support Case`.
+- **Keep total description under ~3000 chars** when possible (RED-194253 is ~2500). Extract relevant content from Zendesk — don't paste the entire thread.
+
+### When no canonical example fits
+
+Pick the closest canonical-jiras entry and add an explicit confidence note in the preview file's pre-flight checks: "Anchor: RED-XXXXX (closest available match for {issue shape}) — review structure carefully."
+
+Suggest the user save the resulting Jira as a new canonical example once filed and reviewed.
 
 ## Related Jira PDFs (Optional Input)
 

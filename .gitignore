@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .env
 .env.local
+
+# Canonical-jira source PDFs — keep .md extracts under version control, not the PDFs themselves
+plugins/*/skills/*/references/canonical-jiras/*.pdf
