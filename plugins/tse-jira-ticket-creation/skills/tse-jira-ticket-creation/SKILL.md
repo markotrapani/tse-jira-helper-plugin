@@ -240,6 +240,15 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - Cloud (Azure / AWS / GCP), product (Redis Software / Cloud / RDI)
 3. **Compute impact score** — apply [`references/impact-score-model.md`](references/impact-score-model.md). Show 6-component breakdown with reasoning. **Flag that the score is a recommendation pending team leader confirmation.**
 4. **Auto-detect project** — apply rules in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) (RDSC → MOD → DOC → RED). State the detected project; let the user override.
+
+   ⭐ **NEW in v0.8**: After project detection, **read the matching "Project-Shape Schema" section in [`references/jira-schema.md`](references/jira-schema.md)** before doing any field mapping. Each project has a different field schema:
+   - **DOC**: sparse — no Severity/Component/Environment/Product/Found By/RCA template. Don't apply RED-style fields.
+   - **RDSC**: dedicated `Steps to Reproduce` / `Expected Result` / `Actual Result` custom fields (NOT description H2 sections). Has special `RDI Customer Issue` type. Different label set.
+   - **MOD**: Components is multi-select. `Found by` includes `Community` for AMR-routed bugs. Has `BugScore` field.
+   - **RCA**: two distinct shapes — customer-RCA (TSE-initiated) vs cluster-incident-RCA (automation-initiated). Detect which shape applies.
+   - **RED**: full TSE schema (default assumption).
+
+   Pick the matching canonical-jiras example for that project + shape and use it as the description structure anchor.
 5. **Map fields** per [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md):
    - Issue type: `Bug` (id from [`references/jira-schema.md`](references/jira-schema.md))
    - **Severity** (`customfield_10180`): **TSE-judged Jira severity** based on customer impact (`0 - Very High` / `1 - High` / `2 - Medium` / `3 - Low`). See [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) for the exact criteria per level.

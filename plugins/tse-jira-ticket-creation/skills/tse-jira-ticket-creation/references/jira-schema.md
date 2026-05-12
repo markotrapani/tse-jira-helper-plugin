@@ -115,6 +115,111 @@ The Support Confluence doc says "Seen by Customer/s" has been replaced by `custo
 
 Since TSE bugs are almost always for customer-originated issues with `Environment=Production`, the skill should treat `customfield_10027` as **always required**, never optional, regardless of whether Affected Organizations resolved.
 
+## ⚠️ Project-Shape Schema Differences (READ THIS BEFORE FIELD MAPPING)
+
+Each Redis Jira project has a **different field schema** — not just different allowed values, but different fields available, different custom field IDs, and different description body conventions. The most common mistake is applying RED Bug's full custom-field set to a DOC or RDSC ticket. **Don't do that.**
+
+This section is the canonical reference for what fields each project supports. The skill MUST consult the matching canonical-jiras example before mapping fields:
+
+### RED (Redislabs) — full TSE schema
+
+Full custom-field set documented elsewhere in this file. All the standard TSE fields apply: Severity, Component, Environment/s, Product/s, Reported Version/Build, Affected Organizations, Seen by Customer/s, Found By, Issue source, RCA (6-section template), Workaround, Data loss/Unavailable/Downtime, Impact Score, etc.
+
+**Canonical examples**: RED-194253, RED-127842, RED-152733, RED-186235, RED-188607, RED-193156, RED-194427.
+
+### MOD (RedisModules) — RED-like but with MOD-specific differences
+
+Most RED fields apply, **but with these differences**:
+
+- **Components is multi-select** (e.g., `RedisAI, RediSearch`) — not single-select like RED.
+- **Found by** uses different allowed values: includes `Community` (not just `Manual testing / Automation / Prod/Customer`). AMR-routed bugs typically use `Community`.
+- **MOD-specific fields**: `BugScore` (numeric — computed by team, complementary to Impact Score), `Is Bug Description Set` (Boolean).
+- **AMR-routed MOD bugs**: must populate RCA template **sections 0-1** at file time (required for Azure customer-facing automation), and use labels `AMR` + `Azure-Integration`, `Affected Organizations = Azure`, `ICM ID/s` field instead of/alongside Zendesk ID.
+
+**Canonical examples**: MOD-14916 (RediSearch perf regression, non-AMR), MOD-12739 (AMR inconsistent count results).
+
+### DOC (Documentation) — sparse schema, don't apply RED-style
+
+DOC project schema is **fundamentally minimal**:
+
+- ❌ NO `Severity` field
+- ❌ NO `Component` single-select
+- ❌ NO `Environment/s` field
+- ❌ NO `Product/s` field
+- ❌ NO `Seen by Customer/s` field
+- ❌ NO `Found By` field
+- ❌ NO `Issue source` field
+- ❌ NO 6-section `RCA` template field
+- ✅ `Impact Score` (`customfield_10585`) is available
+- ✅ `Affected Organizations` (`customfield_10595`) is available
+- ✅ `Effort` (DOC-specific custom field)
+- ✅ Standard Jira fields (Summary, Description, Priority, Labels, Assignee, Reporter, etc.)
+
+**The skill should NOT attempt to populate the RED-style customfield set on DOC tickets.** Verify available fields via `getJiraIssueTypeMetaWithFields` before construction.
+
+**Canonical example**: DOC-6506 (Go-redis SmartClient handoff incorrect default endpoint type).
+
+### RDSC (Redis Data Integration) — dedicated structured fields
+
+RDSC schema differs **fundamentally** from RED:
+
+- ❌ NO `Severity` field
+- ❌ NO 6-section `RCA` template field
+- ❌ NO `Found By` field
+- ❌ NO `Issue source` field
+- ❌ NO `Seen by Customer/s` field
+- ✅ **Dedicated `Steps to Reproduce` custom field** — not a description H2 section!
+- ✅ **Dedicated `Expected Result` custom field** — not a description H2 section!
+- ✅ **Dedicated `Actual Result` custom field** — not a description H2 section!
+- ✅ Standard fields (Affected Organizations, Impact Score, Workaround, Labels)
+- ✅ Labels: `Support-Attention`, `rca_related` (RDSC-specific tags, instead of `CS`/`Support`)
+- ✅ Multi-valued `Affected Organizations` when same defect affects multiple customers (often paired with `Cloners` link to sibling customer ticket)
+- ✅ Special issue type `RDI Customer Issue` (id `14992`) — distinct from regular `Bug` (id `10004`)
+
+**Description body becomes a customer Q&A transcript** — verbatim email quotes, customer-provided shell commands, attached `container.log.txt` + `application.properties`. The "structured" sections (repro / expected / actual) live in the dedicated custom fields, not in the body.
+
+**Canonical example**: RDSC-4706 (AXIS / Debezium / Oracle RAC SCN files).
+
+### RCA (Root Cause Analysis) — two distinct title shapes
+
+The RCA project supports **two distinct ticket shapes** with different reporters, labels, and field-population patterns:
+
+#### Shape A: Customer-RCA (TSE-initiated)
+
+- **Title**: `<Customer> - RCA <mm/dd/yyyy>` (e.g., "American Express - RCA 04/02/2026")
+- **Reporter**: the TSE who initiated (Marko Trapani, etc.)
+- **Labels**: `Escalations_RCA`, `rca_RTTI_automation`, `rca_r&d`
+- **Initial Root Cause**: multi-paragraph narrative (4-6 paragraphs) covering incident timeline, contributing factors, log evidence cross-references
+- **Description body**: Incident Summary (H2) + Timeline table (H2)
+- **Linked Issues**: `Relates` to bug Jiras
+- **Canonical example**: RCA-583.
+
+#### Shape B: Cluster-incident-RCA (automation-initiated)
+
+- **Title**: `#prod__<YYYY-MM-DD>_<cluster>-<account>_<symptom>` (e.g., "#prod__2026-03-24_mc1716-autumn_reshard-stuck")
+- **Reporter**: `Incident` (automation account, not a human TSE)
+- **Labels**: includes `FRRT-label` (Final RC Report Time tracking)
+- **Initial Root Cause**: **1-2 sentences only** (NOT multi-paragraph)
+- **Description body**: emoji-prefixed `## Summary` + milestone-style timeline + a `🕵️‍♂️ What happened (in detail):` line containing the long technical narrative
+- **Linked Issues**: `causes` link to CINC (incident) and PRB (problem) tickets
+- **Cluster ID field**: dedicated and populated (rather than embedded in title for the customer-RCA shape)
+- **Canonical example**: RCA-563.
+
+The skill should detect which shape based on whether the incident is customer-driven (TSE initiating, customer name available) vs cluster-driven (automation alert, cluster ID as the primary identifier).
+
+### Severity 3 - Low pattern (any project)
+
+Severity-3 bugs are typically cosmetic / workaround-exists / supportability and use a distinctive minimal pattern:
+
+- `Data loss: No` (`customfield_10371`) + `Data unavailable: No` (`customfield_10372`) + `Downtime: No` (`customfield_10369`) — the Boolean trio confirms zero operational impact
+- `SM Component` (`customfield_10155`) often populated when the bug is in a UI subsystem (e.g., `Emails`)
+- Description body is **minimal flat narrative** — no H2 sections, embedded screenshot inline, brief CLI verification block, one-line `ASK:` suffix
+- Labels: minimal (just `CS` or `Support` + one domain tag)
+
+**Canonical example**: RED-186235 (UI email settings cosmetic).
+
+---
+
 ## Projects (Confirmed)
 
 | Key   | ID    | Name                | TSE Default Issue Type     |

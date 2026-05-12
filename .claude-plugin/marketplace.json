@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Redis Technical Support Engineer tooling for Claude Code. Umbrella marketplace — current plugins: Jira ticket creation (Bug/RCA/score). Future plugins: RCA tooling, support-package analyzers, Grafana helpers, etc.",
-    "version": "0.7.0"
+    "version": "0.8.0"
   },
   "plugins": [
     {
       "name": "tse-jira-ticket-creation",
       "source": "./plugins/tse-jira-ticket-creation",
       "description": "Create Redis Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, and compute impact scores. Dry-run by default. Sprint-optional, multi-project, uses claude.ai Atlassian MCP. Grounded in Redis CS Support team Confluence standards.",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "category": "support",
       "tags": ["jira", "redis", "tse", "zendesk", "rca", "atlassian"]
     }
