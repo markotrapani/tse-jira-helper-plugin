@@ -19,9 +19,9 @@ A Redis Technical Support Engineer workflow for creating Jira tickets in `redisl
 
 | Workflow | Required Input | Optional Input | Result |
 |---|---|---|---|
-| **Bug Jira** (`/tse-jira bug`) | ≥1 Zendesk PDF (multiple OK) | Related Jira PDFs (any number — linked via `Relates`) | Bug ticket in RED / MOD / DOC / RDSC with TSE-judged severity, default priority, impact score, mapped fields. Impact-score breakdown posted as a comment. For Azure: post-save RCA-template field populated. |
-| **RCA Jira** (`/tse-jira rca`) | ≥1 Jira PDF (multiple OK) | Zendesk PDFs (any number) | RCA ticket created by cloning RCA-41 defaults: title `<Customer> - RCA <mm/dd/yyyy>`, Initial Root Cause from Jira PDF content, action items pre-filled with placeholders, all related bugs linked via `Relates`. Status starts at `Data Collection`. |
-| **Impact Score** (`/tse-jira score`) | ≥1 Jira (PDF or live key) (multiple OK) | Zendesk PDFs (any number, supplement context) | 8-130 score + 6-component breakdown with reasoning. **No ticket creation.** Score is a recommendation; team leader confirms before applying. |
+| **Bug Jira** (`/tse-jira:bug`) | ≥1 Zendesk PDF (multiple OK) | Related Jira PDFs (any number — linked via `Relates`) | Bug ticket in RED / MOD / DOC / RDSC with TSE-judged severity, default priority, impact score, mapped fields. Impact-score breakdown posted as a comment. For Azure: post-save RCA-template field populated. |
+| **RCA Jira** (`/tse-jira:rca`) | ≥1 Jira PDF (multiple OK) | Zendesk PDFs (any number) | RCA ticket created by cloning RCA-41 defaults: title `<Customer> - RCA <mm/dd/yyyy>`, Initial Root Cause from Jira PDF content, action items pre-filled with placeholders, all related bugs linked via `Relates`. Status starts at `Data Collection`. |
+| **Impact Score** (`/tse-jira:score`) | ≥1 Jira (PDF or live key) (multiple OK) | Zendesk PDFs (any number, supplement context) | 8-130 score + 6-component breakdown with reasoning. **No ticket creation.** Score is a recommendation; team leader confirms before applying. |
 
 This skill is the spiritual successor to `~/Downloads/marko-projects/jira-helper` — same impact scoring model and conceptual field mapping, but actually creates tickets via MCP instead of generating markdown.
 
@@ -65,7 +65,7 @@ Read the matching reference file as the workflow demands — don't load all upfr
 
 The skill enters publish mode **only** when one of these is true:
 
-1. User invoked `/tse-jira bug ... --publish` or `/tse-jira rca ... --publish`
+1. User invoked `/tse-jira:bug ... --publish` or `/tse-jira:rca ... --publish`
 2. User has run a dry-run, reviewed the preview file, and said something like "publish it now", "go ahead and create", "publish to Jira" — referencing the preview file the skill produced
 3. User is running the Impact Score workflow with the explicit "apply this score to ticket X" follow-up (since score-only is read-only by default)
 
@@ -262,7 +262,7 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
 
 ### Score workflow is special
 
-`/tse-jira score` is **inherently read-only** — it just computes the impact score. It doesn't have a "publish" mode in the same sense. The follow-up "apply this score to RED-NNN" is a separate small workflow that does count as publish (it sets `customfield_10585` and posts a breakdown comment) — that follow-up uses the same explicit-confirmation rules.
+`/tse-jira:score` is **inherently read-only** — it just computes the impact score. It doesn't have a "publish" mode in the same sense. The follow-up "apply this score to RED-NNN" is a separate small workflow that does count as publish (it sets `customfield_10585` and posts a breakdown comment) — that follow-up uses the same explicit-confirmation rules.
 
 ---
 
@@ -542,8 +542,8 @@ For multi-line content, add more paragraph blocks. For tables/lists, use ADF tab
 
 ## Related Tools
 
-- `/tse-jira bug <zendesk-pdfs>+ [-- <jira-pdfs>+]` — Bug workflow shortcut
-- `/tse-jira rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — RCA workflow shortcut
-- `/tse-jira score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — Impact score only
+- `/tse-jira:bug <zendesk-pdfs>+ [-- <jira-pdfs>+]` — Bug workflow shortcut
+- `/tse-jira:rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — RCA workflow shortcut
+- `/tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — Impact score only
 - ECC `jira-integration` skill — complementary; read/comment/transition/search on existing tickets
 - `redislabsdev/agent-skills/ticket-to-pr` — converts a Jira into a PR (after creation)

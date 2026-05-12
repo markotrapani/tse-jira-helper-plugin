@@ -456,7 +456,7 @@ When a Zendesk PDF is provided, the skill should **also scan the same directory 
 
 ### Discovery
 
-If the user runs `/tse-jira bug ~/Downloads/packages/<ZD>/ticket.pdf`, the skill should:
+If the user runs `/tse-jira:bug ~/Downloads/packages/<ZD>/ticket.pdf`, the skill should:
 
 1. Inspect the directory containing the PDF (`~/Downloads/packages/<ZD>/`) for sibling image files
 2. List them in the dry-run output's preview file so the TSE can confirm they're relevant

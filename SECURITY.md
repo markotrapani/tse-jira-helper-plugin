@@ -50,7 +50,7 @@ If you want an even stronger guarantee (i.e., no writes possible without you fir
 
 ## Layer 2 — Skill-level (dry-run default + explicit "publish" keyword)
 
-The `tse-jira-ticket-creation` skill defaults to **dry-run mode**. In dry-run:
+The `tse-jira` plugin's skill defaults to **dry-run mode**. In dry-run:
 
 - The skill produces a markdown preview file at `~/tse-jira-previews/<project>-<workflow>-<timestamp>.md`
 - The preview mimics the Jira issue view (header, description, custom fields, comment, links) plus an appendix with the raw API payloads

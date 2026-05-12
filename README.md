@@ -4,15 +4,20 @@ Umbrella **Claude Code marketplace** for Redis Technical Support Engineers. Curr
 
 ## Plugins in this marketplace
 
-### `tse-jira-ticket-creation` (v0.6.0)
+### `tse-jira` (v0.11.0)
 
 Create Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras by cloning the canonical RCA-41 template, and compute the 8-130 impact score — all through the claude.ai Atlassian MCP, no API tokens required.
+
+**Three slash commands:**
+- `/tse-jira:bug <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] [--publish]`
+- `/tse-jira:rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] [--publish]`
+- `/tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]`
 
 **Grounded in Redis Customer Support team standards** ([Confluence](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958)) and verified against the live `redislabs.atlassian.net` schema. Not based on guesses.
 
 **Spiritual successor to [`jira-helper`](https://github.com/markotrapani/jira-helper)** — same impact scoring model and conceptual field mapping, but Claude actually creates tickets via MCP instead of generating markdown for copy/paste.
 
-[→ Full plugin docs](./plugins/tse-jira-ticket-creation/skills/tse-jira-ticket-creation/SKILL.md)
+[→ Full plugin docs](./plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md)
 
 ## Installation
 
@@ -23,7 +28,7 @@ Create Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras by cloning the canon
 /plugin marketplace add markotrapani/redis-tse-tools
 
 # 2. Install plugin(s) — currently just one
-/plugin install tse-jira-ticket-creation
+/plugin install tse-jira
 ```
 
 ### ⚠️ Strongly recommended: harness-level safety net
@@ -39,7 +44,7 @@ Two existing tools each cover half the problem:
 - **`everything-claude-code/jira-integration`** — generic `/jira get|comment|transition|search` for *existing* tickets. No creation logic.
 - **`redislabsdev/agent-skills/jira-ticket-creation`** — full creation workflow but hardcoded to the Core Infra R&D team (RED project only, specific sprints, 3 components).
 
-TSEs file across **many projects** (RED, MOD, DOC, RDSC, RCA) and rarely care about sprints. `tse-jira-ticket-creation` fills that gap with:
+TSEs file across **many projects** (RED, MOD, DOC, RDSC, RCA) and rarely care about sprints. `tse-jira` fills that gap with:
 
 - **Multi-project support** — auto-detects RED / MOD / DOC / RDSC from ticket content; supports any other project
 - **Sprint-blank** by default — per Support docs
@@ -52,7 +57,7 @@ TSEs file across **many projects** (RED, MOD, DOC, RDSC, RCA) and rarely care ab
 
 ## Authoritative Sources
 
-Every workflow rule in `tse-jira-ticket-creation` is grounded in these Confluence docs (re-read on doubt):
+Every workflow rule in `tse-jira` is grounded in these Confluence docs (re-read on doubt):
 
 1. [**Jira creation for Support**](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958) — CS team's Jira filing guide
 2. [**Jira - Impact Score**](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553) — 6-component scoring model
@@ -90,30 +95,30 @@ mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
 ```
 Expected to return a resource with URL `https://redislabs.atlassian.net` and id `06f73ca7-8f2c-4392-b40a-08288e9d0ba3`.
 
-## Usage — `/tse-jira` slash command
+## Usage — three slash commands
 
 ### Quick reference
 
 ```
-# Default: dry-run (writes preview file, no MCP writes)
-/tse-jira bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+]
-/tse-jira rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
-/tse-jira score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
+# Default: dry-run (writes .md + .html preview, no MCP writes)
+/tse-jira:bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+]
+/tse-jira:rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
+/tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
 
 # Publish: actually fires MCP writes (still asks for confirmation)
-/tse-jira bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] --publish
-/tse-jira rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] --publish
+/tse-jira:bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] --publish
+/tse-jira:rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] --publish
 ```
 
-The first set of args is **required** (one or more). The `--` separator marks the start of **optional** supporting inputs. `--publish` enables publish mode (default is dry-run).
+The first set of args is **required** (one or more). The `--` separator marks the start of **optional** supporting inputs. `--publish` enables publish mode (default is dry-run). `score` is inherently read-only — no `--publish` flag.
 
-### Workflow 1 — Bug Jira from Zendesk
+### Workflow 1 — `/tse-jira:bug` — Bug Jira from Zendesk
 
 **Inputs:** ≥1 Zendesk PDF (required), related Jira PDFs/keys (optional).
 
 ```bash
-/tse-jira bug ~/Downloads/redislabs.zendesk.com_tickets_162249_print.pdf
-/tse-jira bug ticket_162249.pdf -- RED-176559 RED-184754
+/tse-jira:bug ~/Downloads/redislabs.zendesk.com_tickets_162249_print.pdf
+/tse-jira:bug ticket_162249.pdf -- RED-176559 RED-184754
 ```
 
 What happens:
@@ -127,12 +132,12 @@ What happens:
 8. **In publish mode**: asks for final confirmation, then creates the Bug + posts impact-score breakdown comment + links related Jiras via `Relates`. For Azure tickets: populates `customfield_10063` with the `0. Incident short description:` template.
 9. Returns Jira key + browse URL
 
-### Workflow 2 — Multi-cluster RCA
+### Workflow 2 — `/tse-jira:rca` — Multi-cluster RCA
 
 **Inputs:** ≥1 Jira (PDF or live key) **required** — the related bug Jiras. ≥0 Zendesk PDFs (optional) for customer-impact context.
 
 ```bash
-/tse-jira rca RED-172012 RED-172734 -- ZD-146983.pdf ZD-146173.pdf
+/tse-jira:rca RED-172012 RED-172734 -- ZD-146983.pdf ZD-146173.pdf
 ```
 
 What happens:
@@ -145,15 +150,15 @@ What happens:
 7. **In publish mode**: asks for final confirmation, then creates the RCA, links each related bug via `Relates`
 8. Returns RCA key + browse URL + checklist of placeholders + transition reminder
 
-### Workflow 3 — Impact Score Only
+### Workflow 3 — `/tse-jira:score` — Impact Score Only
 
 **Inputs:** ≥1 Jira (PDF or live key) **required**. Optional Zendesk PDFs after `--` supplement customer/frequency context.
 
 No ticket creation by default. After scoring, the skill offers (on explicit "apply") to set `customfield_10585` and post a breakdown comment.
 
 ```bash
-/tse-jira score RED-172734
-/tse-jira score RED-172734 RED-172012 -- ZD-146983.pdf
+/tse-jira:score RED-172734
+/tse-jira:score RED-172734 RED-172012 -- ZD-146983.pdf
 ```
 
 ## The Impact Score Model
@@ -181,7 +186,7 @@ Six components × optional multipliers, range **8 – 130**. Per [Confluence](ht
 
 > The "Priority Band" informs prioritization expectations to R&D — it's **separate** from the Jira `Priority` system field (left at default `Medium`, PM-set) and the Jira `Severity` custom field (TSE-judged customer impact). Don't conflate the three.
 
-Full model with worked examples: [`plugins/tse-jira-ticket-creation/skills/tse-jira-ticket-creation/references/impact-score-model.md`](./plugins/tse-jira-ticket-creation/skills/tse-jira-ticket-creation/references/impact-score-model.md).
+Full model with worked examples: [`plugins/tse-jira/skills/tse-jira-ticket-creation/references/impact-score-model.md`](./plugins/tse-jira/skills/tse-jira-ticket-creation/references/impact-score-model.md).
 
 ## Project Auto-Detection (Bug Workflow)
 
@@ -199,7 +204,7 @@ redis-tse-tools/                              ← marketplace repo
 ├── .claude-plugin/
 │   └── marketplace.json                      ← lists all plugins
 ├── plugins/
-│   └── tse-jira-ticket-creation/             ← plugin (v0.6.0)
+│   └── tse-jira/                             ← plugin (v0.11.0)
 │       ├── .claude-plugin/
 │       │   └── plugin.json
 │       ├── skills/
@@ -209,9 +214,13 @@ redis-tse-tools/                              ← marketplace repo
 │       │           ├── jira-schema.md         # real field IDs, projects, link types
 │       │           ├── impact-score-model.md  # 6-component model + SLA thresholds
 │       │           ├── zendesk-bug-mapping.md # Bug filing rules per CS standards
-│       │           └── rca-template.md        # RCA Jira per DevOps procedure + RCA-41
+│       │           ├── rca-template.md        # RCA Jira per DevOps procedure + RCA-41
+│       │           ├── preview-template.html  # Jira-mimicking HTML preview
+│       │           └── canonical-jiras/       # 12 canonical examples for anchoring
 │       └── commands/
-│           └── tse-jira.md                    # /tse-jira slash command
+│           ├── bug.md                         # /tse-jira:bug
+│           ├── rca.md                         # /tse-jira:rca
+│           └── score.md                       # /tse-jira:score
 ├── README.md                                  ← you are here
 ├── SECURITY.md                                ← harness-level safety net guide
 └── LICENSE
