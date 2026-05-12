@@ -450,6 +450,96 @@ Pick the closest canonical-jiras entry and add an explicit confidence note in th
 
 Suggest the user save the resulting Jira as a new canonical example once filed and reviewed.
 
+## Screenshots & Other Customer-Provided Files (v0.10+)
+
+When a Zendesk PDF is provided, the skill should **also scan the same directory for image attachments** (PNG / JPG / JPEG / GIF / WEBP) and other supplementary files (TXT logs, ZIP, manifest snippets). Customers commonly attach screenshots to Zendesk that we want to carry over to the Jira.
+
+### Discovery
+
+If the user runs `/tse-jira bug ~/Downloads/packages/<ZD>/ticket.pdf`, the skill should:
+
+1. Inspect the directory containing the PDF (`~/Downloads/packages/<ZD>/`) for sibling image files
+2. List them in the dry-run output's preview file so the TSE can confirm they're relevant
+3. For each image, decide where it logically belongs in the description body
+
+### Embedding strategy
+
+**The Atlassian MCP does NOT support attachments via `createJiraIssue` or any other tool.** Workaround:
+
+1. **In the description (markdown payload)**: insert image references using markdown syntax `![alt text](filename.png)` at the chosen embed spots. These render as broken/missing images in Jira **until** the files are manually attached.
+2. **In the HTML preview**: embed the actual image inline via `<img src="file://<absolute-path>">` so the TSE sees the final layout visually.
+3. **In the .md preview**: reference with file paths so VS Code / similar viewers can render the PNG inline.
+4. **Post-create checklist**: explicitly remind the TSE to manually attach the images in the Jira browser UI. Once attached, the description's image references resolve.
+
+### Choosing meaningful embed spots
+
+Match image content to description section:
+
+| Image content | Likely section |
+|---|---|
+| Config / manifest snippet that triggers the bug | `## Steps to Reproduce` (after the textual step that mentions the config) |
+| Error screenshot from logs or terminal | `## Evidence from Support Case` (with a subsection title naming the scenario) |
+| UI screenshot showing the bug | `## Evidence from Support Case` (with caption explaining what to look at) |
+| Architecture / topology diagram | `## Evidence from Support Case` (as a sub-section) |
+| Customer's full Terraform / Kubernetes / config file | `## Evidence from Support Case` (with `<details>` collapsible if long) |
+| Grafana / monitoring screenshot | Linked from `customfield_10375` (Metrics) field; embedded in description if it's primary evidence |
+| Generic "this looks broken" UI shot | `## Actual Behavior` (as supporting visual) |
+
+### Example pattern (Aetna #162249)
+
+The customer provided 3 screenshots. Embed strategy used in the dry-run preview:
+
+```markdown
+## Steps to Reproduce
+
+...
+2. Write a Terraform manifest using `redis-cloud` provider v2.15 with a `dynamic "override_region"` block:
+
+   ![Override Region block](Override Region block.png)
+
+   The dynamic block iterates over `var.database_regions` and configures `remote_backup` per region with GCS storage.
+...
+
+## Evidence from Support Case
+
+### East region failure (us-east4)
+
+![East region terraform apply failure](AA East Fail.png)
+
+Full Terraform diagnostic for us-east4 ... [analysis paragraph]
+
+### West region failure (us-west2)
+
+![West region terraform apply failure](AA West Fail.png)
+
+Identical failure pattern for us-west2, confirming the bug isn't region-specific.
+```
+
+### Caption pattern
+
+For each embedded image, follow it with:
+- A **1-2 sentence caption** explaining what to look at in the image
+- A **filename callout** for the TSE: `📎 Override Region block.png (manually attach to Jira)`
+- (Optional) **highlighted clues** — call out specific values, log lines, or fields in the image that are relevant to root-cause analysis (e.g., "Note `time_utc:cty.NullVal(cty.String)` at the bottom — possible null-handling issue")
+
+The skill's job is to **extract value from screenshots** that the TSE might miss if they just looked at the bare PDF — pointing out specific signal in the visual.
+
+### Pre-flight checklist additions
+
+When screenshots are detected, add:
+
+- ✅ `<N> screenshots found and embedded at meaningful spots`
+- ⚠️ `Screenshots referenced but NOT attached — MCP doesn't support attachments. TSE must manually attach <filename1>, <filename2>, ... in browser after Jira creation.`
+
+### Sidebar attachment panel (HTML preview)
+
+The HTML preview should include a sidebar section titled **"📎 Attachments to upload"** listing all referenced screenshots so the TSE can copy/paste filenames when attaching.
+
+### Post-create checklist additions
+
+- "Manually attach the N screenshots in the new Jira's browser UI (`<list of paths>`)"
+- "Verify image references in description body resolve to inline images once attached"
+
 ## Related Jira PDFs (Optional Input)
 
 If the user provides one or more related Jira PDFs alongside the Zendesk PDFs:

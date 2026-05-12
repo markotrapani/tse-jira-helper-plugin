@@ -226,6 +226,43 @@
     .publish-cta strong { color: var(--color-info-text); }
     .publish-cta code { background: var(--color-bg); color: var(--color-text); }
 
+    /* Screenshot embed blocks (v0.10+) */
+    .screenshot {
+      margin: 16px 0;
+      padding: 12px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+    }
+    .screenshot img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid var(--color-border);
+      border-radius: 3px;
+      background: #2c3338;
+    }
+    .screenshot-caption {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+    .screenshot-filename {
+      font-family: SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      margin-top: 4px;
+    }
+    .attach-warning {
+      background: var(--color-warning-bg);
+      color: var(--color-warning-text);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin: 8px 0;
+    }
+
     /* Footer */
     footer { padding: 16px 24px; border-top: 1px solid var(--color-border); color: var(--color-text-subtle); font-size: 12px; text-align: center; }
   </style>
@@ -255,6 +292,11 @@
   <!-- ============ MAIN COLUMN ============ -->
   <div class="ticket-main">
 
+    <!-- Attachment warning (v0.10+): only render if customer-provided screenshots exist -->
+    <div class="attach-warning">
+      <strong>⚠️ Attachment workflow:</strong> The {N} screenshots referenced below need to be manually attached to the new Jira in the browser after creation. MCP <code>createJiraIssue</code> doesn't support attachments. Once attached, the image references in the description will resolve to inline images in Jira.
+    </div>
+
     <h2>Description</h2>
     <div class="description-body">
       <!--
@@ -262,6 +304,22 @@
         Convert ## headings, paragraphs, bulleted/numbered lists, fenced code blocks,
         tables, inline code, and links. Match the Description Body Template structure
         from references/zendesk-bug-mapping.md.
+
+        SCREENSHOT EMBEDS (v0.10+):
+        For each customer-provided screenshot found in the source directory, embed at the
+        section that best matches its content. Pattern:
+
+          <div class="screenshot">
+            <img src="file:///absolute/path/to/screenshot.png" alt="...">
+            <div class="screenshot-caption">1-2 sentence explanation of what to look at.</div>
+            <div class="screenshot-filename">📎 <code>screenshot.png</code> (manually attach to Jira)</div>
+          </div>
+
+        Place screenshots inline with the section that matches their content:
+        - Config snippet → Steps to Reproduce
+        - Error output / log excerpt → Evidence from Support Case
+        - UI bug → Actual Behavior
+        - Architecture diagram → Evidence from Support Case (sub-section)
       -->
       {DESCRIPTION_HTML}
     </div>
@@ -435,6 +493,19 @@
       </div>
       <div class="field-row muted" style="grid-template-columns: 1fr;">
         <div class="field-label" style="color: var(--color-text-subtle);">Sections 1-5 left as placeholders for Engineering / PM.</div>
+      </div>
+    </div>
+
+    <!-- Attachments sidebar (v0.10+): only render if screenshots exist -->
+    <div class="sidebar-section">
+      <h3>📎 Attachments to upload</h3>
+      <div style="font-size: 12px; color: var(--color-text-muted);">
+        <p style="margin-top: 0;">MCP doesn't upload — attach manually in browser after create:</p>
+        <ul style="padding-left: 16px; margin: 8px 0;">
+          <!-- repeat per screenshot: -->
+          <li><code>{SCREENSHOT_FILENAME}</code></li>
+        </ul>
+        <p style="font-size: 11px; font-style: italic;">All in <code>{SCREENSHOT_SOURCE_DIR}</code></p>
       </div>
     </div>
 

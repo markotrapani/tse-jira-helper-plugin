@@ -276,6 +276,8 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
 ### Steps
 
 1. **Read all Zendesk PDFs** with the Read tool. PDFs are first-class — Read returns text and reads up to 20 pages.
+
+   ⭐ **NEW in v0.10**: **ALSO scan the same directory for sibling image files** (PNG / JPG / JPEG / GIF / WEBP) and other supplementary artifacts (TXT logs, ZIP). Customers commonly attach screenshots to Zendesk that should carry over to the Jira. Use `ls <PDF-directory>` to enumerate. For each image, Read it to understand what it shows, then plan the embed spot in the description body per [`references/zendesk-bug-mapping.md` → "Screenshots & Other Customer-Provided Files"](references/zendesk-bug-mapping.md).
 2. **Extract per PDF**:
    - Zendesk ticket ID (filename pattern: `redislabs.zendesk.com_tickets_<ID>_print.pdf`)
    - Customer name / organization
@@ -336,6 +338,7 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - For Active-Active incidents: include the A-A mapping table inside `## Evidence from Support Case`.
    - Log references in `cluster_name, node_id, shard_id` format inside `## Evidence from Support Case`.
    - Related Jira links inside `## Related Jiras` (if any).
+   - **Embed customer-provided screenshots at meaningful spots** ⭐ NEW in v0.10. For each PNG / JPG found in the source directory, insert a markdown image reference `![alt](filename.png)` at the section that best matches the image's content (config snippet → Steps to Reproduce; error output → Evidence from Support Case; UI bug → Actual Behavior; etc.). Follow each image with a 1-2 sentence caption + a filename callout for the TSE to manually attach. See [`references/zendesk-bug-mapping.md` → "Screenshots & Other Customer-Provided Files"](references/zendesk-bug-mapping.md) for the full embed strategy.
    - **If no canonical example fits**: pick the closest one and flag low confidence in the preview's pre-flight checks: `"Anchor: RED-XXXXX (closest match for {issue shape}) — review carefully"`. Suggest the user save the resulting Jira as a new canonical example after filing.
    - See [`references/zendesk-bug-mapping.md` → Description Body Template](references/zendesk-bug-mapping.md) for the full template and anti-patterns.
 7. **Preview** — Ask the user for severity confirmation if not provided. Resolve Affected Organizations via paginated search. Build the full payload structures (createJiraIssue, addCommentToJiraIssue, createIssueLink calls).
