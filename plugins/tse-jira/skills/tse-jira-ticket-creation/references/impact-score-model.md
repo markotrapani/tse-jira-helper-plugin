@@ -28,7 +28,7 @@ Final Score = Base Score × (1 + CloudOpsMultiplier + CustomerMultiplier)
 - Multipliers: **0 – 0.15 each** (so total multiplier ∈ [0, 0.30])
 - Final range: **8 – 130**
 
-Round final score to one decimal place.
+**The final score MUST be stored as an integer in `customfield_10585`.** Round to the nearest whole number; per the "if in doubt, lean lower" guidance, prefer floor on ties (e.g., `56.5 → 56`, not `57`).
 
 ## Components
 
@@ -194,9 +194,18 @@ Cases that impact deal closures, customer confidence, and ongoing efforts by cus
 
 ## Posting on the Ticket
 
-Per Support docs:
-- Set `customfield_10585` (Impact Score) to the numeric final score
-- The breakdown table (the 6-component decomposition) goes in a **comment**, not in a custom field. The Support team typically posts a screenshot from the [impact score Google Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit). The skill should:
-  1. Set the numeric score field
-  2. Post a comment with the breakdown table in markdown (since we can't post a screenshot directly)
-  3. Optionally also fill `customfield_10681` (Impact Score details) with the text version as a backup
+Real TSE practice (per Marko, 2026-05-12; supersedes the earlier Confluence-derived "post a comment" guidance):
+
+1. **Compute the score** using the [Impact Score Google Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0). Each ticket gets a row; the sheet does the math.
+2. **Set `customfield_10585`** (Impact Score) to the **integer** final score.
+3. **Add an `## Impact Score` H2 section in the description body** containing:
+   - One line: `**Final Score: <N> (<BAND>)** — see [Impact Score Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0).`
+   - The 6-component breakdown table as a markdown fallback (so the score is interpretable without the screenshot)
+   - A callout: "Screenshot of the sheet row for this Jira to be pasted by the TSE after creation."
+4. **Take a screenshot** of the row in the Google Sheet showing the breakdown; **paste it into the Impact Score section of the Jira** in the browser after `createJiraIssue` succeeds.
+
+**Do NOT:**
+- Call `addCommentToJiraIssue` with the breakdown — no post-create comment.
+- Populate `customfield_10681` (Impact Score details) — leave blank. Real TSE practice puts the breakdown in the description body, not in this metadata field.
+
+Why integer-only: the field is consumed by triage tooling that treats it as a whole number. Per the "if in doubt, lean lower" guidance, prefer floor on ties (e.g., `56.5 → 56`).

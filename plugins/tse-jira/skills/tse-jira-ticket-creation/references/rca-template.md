@@ -28,6 +28,17 @@ Per the R&D RCA process doc, the TSE is the **Initiator** (along with CloudOps /
 - Provide collected data, initial root cause, context
 - Set the right status
 
+## Input Contract (v0.12+ — Zendesk now required)
+
+For the **customer-facing RCA shape** (default, e.g. RCA-583):
+
+- **Required:** ≥1 Zendesk PDF — customer-facing context for impact statement and timeline.
+- **Required:** ≥1 Jira PDF or live Jira key — related bug Jiras that feed the root cause analysis.
+
+For the **cluster-incident-shape RCA** (automation-initiated, e.g. RCA-563): Zendesk is **not** required. Detect via cluster ID prefix in summary + `Reporter: Incident` (automation) on the source Jira. In that case, ask for cluster context instead.
+
+This is a tightening from earlier versions where Zendesk was optional. See memory: `feedback-rca-zendesk-required`.
+
 ## Required Fields
 
 - `project` — `{"key":"RCA"}`

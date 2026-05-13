@@ -1,5 +1,5 @@
 ---
-description: Create a multi-cluster RCA Jira by cloning RCA-41 defaults. Requires at least one related Jira (PDF or live key) and optionally Zendesk PDFs. Defaults to DRY-RUN — writes .md + Jira-styled .html previews, no MCP writes. Use --publish to actually file.
+description: Create a multi-cluster RCA Jira by cloning RCA-41 defaults. Requires at least one Zendesk PDF AND at least one related Jira (PDF or live key). Defaults to DRY-RUN — writes .md + Jira-styled .html previews, no MCP writes. Use --publish to actually file.
 argument-hint: <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] [--publish]
 ---
 
@@ -17,7 +17,19 @@ Shortcut for the `tse-jira-ticket-creation` skill — Workflow B (RCA filing). *
 /tse-jira:rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] --publish
 ```
 
-**Input contract** — one or more Jira PDFs or live Jira keys are **required** (the bugs that feed the root cause analysis). The optional second set after `--` provides Zendesk PDFs for customer-impact context. The `--publish` flag enables publish mode.
+**Input contract** — **both** sides required (v0.12+ tightening, 2026-05-12):
+- ≥1 Jira PDF (or live Jira key) — the bugs that feed the root cause analysis.
+- ≥1 Zendesk PDF — customer-facing context for impact statement and timeline.
+
+**Exception:** automation-initiated cluster-incident-shape RCAs (e.g. RCA-563) may have no customer Zendesk. The skill detects this case via cluster ID / automation reporter signals and waives the Zendesk requirement, asking for cluster context instead.
+
+The `--publish` flag enables publish mode.
+
+### Invoking without arguments — interactive mode (v0.12+)
+
+`/tse-jira:rca` with no arguments drops into **interactive mode**: asks for the Zendesk PDF(s) (≥1), the related Jira(s) (≥1), then batches the RCA prerequisites (customer, incident date, clusters, start/end UTC, product, affected components, contributors). Validation runs as you go. See [SKILL.md → Interactive Mode](../skills/tse-jira-ticket-creation/SKILL.md).
+
+If only the Jiras are provided on the CLI (`/tse-jira:rca RED-XXX RED-YYY`) with no Zendesk after `--`, the skill drops into interactive mode to collect the Zendesk side rather than erroring out.
 
 ## Mode: Dry-Run (default) vs Publish
 

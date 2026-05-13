@@ -52,8 +52,67 @@ Read the matching reference file as the workflow demands — don't load all upfr
 - User asks for an impact score / priority assessment for a Jira ticket
 - User wants to file a bug against RED, MOD, DOC, or RDSC
 - User attaches or references a Zendesk PDF or Jira PDF/key
+- User invokes `/tse-jira:new` (router — asks which type) or any of the three workflow commands without args
 
 **Never auto-create.** Always preview the fields and ask for confirmation before any `createJiraIssue` / `createIssueLink` / `editJiraIssue` call.
+
+---
+
+## ✨ Interactive Mode
+
+The plugin runs in **interactive mode** whenever the user invokes it without sufficient information. Three trigger conditions:
+
+1. **Top-level router** — `/tse-jira:new` is the entry point for "I want to file a Jira but I don't remember which command." Use `AskUserQuestion` with three options (`Bug Jira` / `RCA Jira` / `Impact Score`), then chain into the matching interactive flow.
+2. **Command with no args** — `/tse-jira:bug`, `/tse-jira:rca`, `/tse-jira:score` invoked without arguments → fall back to the flow's interactive script below.
+3. **Command with partial / ambiguous args** — glob matched 0 files, project auto-detection has multiple candidates, Jira key looks malformed, etc. Pause and ask instead of guessing.
+
+### Per-flow interactive scripts
+
+**bug flow:**
+1. Ask: *"Path or glob to the Zendesk PDF(s)? You can give one path, a glob like `~/Downloads/packages/162249/*.pdf`, or comma-separated paths."* — validate with `ls`/glob; if 0 matches, re-prompt.
+2. Optionally scan the same directory for sibling screenshots (PNG/JPG/GIF/WEBP) and confirm: *"Found N image files alongside the PDF — should I embed these in the description? [yes / no / list which ones]"*.
+3. Ask: *"Any related Jiras? Give me keys (e.g., `RED-176559 RED-184754`) or PDF paths, or say `none`."* — for each key, regex-check `^[A-Z]+-\d+$` and verify via `getJiraIssue`. Re-prompt on validation failure.
+4. After project auto-detection: if confidence is medium/low, confirm: *"I'm detecting project = RED based on `<signal>`. Override?"*.
+5. Ask for **Severity** (required TSE judgment): `AskUserQuestion` with `0 - Very High / 1 - High / 2 - Medium / 3 - Low` — default highlight `2 - Medium`.
+6. Ask: *"Should I run a codebase investigation against the customer's reported version to ground the Suggested Fix in real file:line refs? Looks like you have `<repo>` locally — I'll `git fetch --tags` first."* See [[feedback-check-local-codebase]].
+7. Draft the preview. Show paths. Stop.
+
+**rca flow:**
+1. Ask: *"Path(s) to the Zendesk PDF(s)? Comma-separated or glob. **At least one required.**"* — validate; re-prompt if 0.
+2. Ask: *"Related Jira(s)? Keys or PDF paths, comma-separated. **At least one required.**"* — validate each.
+3. Batched RCA prerequisites via `AskUserQuestion` (where structured) and plain Q&A (where free-text):
+   - Customer name (or `ClusterID` for cluster-incident shape) — free-text
+   - Incident date (`mm/dd/yyyy`) — free-text, parse-check
+   - Cluster names (list) — free-text
+   - Start time / End time (UTC) — free-text, parse-check
+   - Product: `Redis Cloud / Redis Software / AMR` — AskUserQuestion
+   - Affected components — multi-select if multiple plausible
+   - Contributors — free-text
+4. Detect cluster-incident shape (automation-initiated, no customer ZD). If detected, skip step 1's "Zendesk required" — see [[feedback-rca-zendesk-required]].
+5. Draft preview, show paths, stop.
+
+**score flow:**
+1. Ask: *"Jira key(s) or PDF path(s) you want scored? Comma-separated."* — validate each.
+2. Ask: *"Any Zendesk PDFs that add customer/frequency context? Optional."*
+3. Compute. Show breakdown. Stop. No publish step unless user says *"apply this score to RED-NNN"*.
+
+### Validation policy: validate as we go
+
+- **File paths**: check existence with `ls` or `test -f` before accepting. If glob returns 0 files, re-prompt.
+- **Jira keys**: regex `^[A-Z]+-\d+$` first, then verify live via `getJiraIssue` (read-only — no MCP write).
+- **Dates**: parse to `mm/dd/yyyy` and check sanity (year ≥ 2025, etc.).
+- **Customer names**: light check — non-empty. Resolve against `customfield_10595` (Affected Organizations) when filing.
+- **Re-prompt on failure** rather than coasting forward.
+
+### Avoid asking what you can infer
+
+- If the user has already typed paths/keys in the same message that invoked the command, don't re-ask — use what they gave.
+- If project auto-detection from PDF content is high-confidence, don't ask "which project?" — state the detection and let the user override.
+- If only one customer is named in the PDF, don't ask "who's the customer?" — state it and let the user correct.
+
+### Confirm-as-you-go
+
+After each major question, echo back what was captured: *"OK — bug from `ticket_162249.pdf` (Aetna), related Jiras RED-176559 + RED-184754, severity 2-Medium. Proceeding to project detection..."*. Reduces error and gives the user opportunity to course-correct early.
 
 ---
 
@@ -366,10 +425,11 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
 
 ### Input Contract
 
+- **Required:** ≥1 Zendesk PDF (customer-facing context for impact statement and timeline).
 - **Required:** ≥1 Jira PDF (or live Jira key). Multiple Jiras OK — these are the related bug Jiras that feed the root cause analysis.
-- **Optional:** Any number of Zendesk PDFs (customer-facing context for impact statement and timeline).
+- **Exception:** Cluster-incident-shape RCAs (automation-initiated, e.g. RCA-563) may not have a customer Zendesk. The skill should detect this case via cluster ID / automation reporter signals and skip the Zendesk requirement, instead asking for cluster context. Default for customer-facing RCAs: Zendesk required. See [memory: feedback-rca-zendesk-required].
 - **Required from user (ask once, batched):**
-  - Customer name (e.g., "Azure", "monday.com") — or `ClusterID` / `Major Service` for multi-customer incidents
+  - Customer name (e.g., "Azure", "monday.com") — or `ClusterID` / `Major Service` for multi-customer / cluster-incident
   - Incident date (`mm/dd/yyyy`)
   - Cluster names (list — TSE incidents often span multiple clusters)
   - Start time and End time (UTC)

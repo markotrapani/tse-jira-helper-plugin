@@ -13,13 +13,17 @@ Verified via `getVisibleJiraProjects`, `getJiraProjectIssueTypesMetadata`, `getJ
 
 ## RCA Template Block (`customfield_10063`)
 
-**Populate this on every bug** — not just Azure tickets. This was corrected in v0.7 after seeing RED-194253 (a non-Azure cert-chain bug) with the full template populated.
+**TSE default: LEAVE BLANK.** Per Marko (2026-05-12 correction): "for that RCA section.. we don't have to fill it out. That is for R&D to fill out." This field is R&D's working area during triage and development — TSEs don't seed it.
 
-The textarea field accepts a string. The template:
+**Narrow exception — Azure ACRE/AMR tickets only:** the customer-facing Microsoft automation reads section 0, so for AMR / ACRE bugs, populate section 0 with a one-line customer-readable description. Sections 1–5 still stay as placeholders. See canonical [`MOD-12739-bug-amr-inconsistent-count.md`](./canonical-jiras/MOD-12739-bug-amr-inconsistent-count.md).
+
+**For ALL non-Azure bugs (RED / DOC / MOD non-AMR / RDSC / etc.):** omit `customfield_10063` from the `createJiraIssue` payload entirely. Don't fabricate the 6-section ADF skeleton.
+
+The template that R&D works against (for reference only — TSE does NOT seed this):
 
 ```
 ------------------------------
-0. Incident short description: <TSE fills in: one-line customer-readable description>
+0. Incident short description: <one-line customer-readable description — Azure ACRE/AMR ONLY>
 1. Bug Description:
 2. Which components impacted by this bug?
 3. What was fixed?
@@ -28,10 +32,7 @@ The textarea field accepts a string. The template:
 ------------------------------
 ```
 
-**TSE responsibility at file time:**
-
-- **Section 0** — fill in immediately with a one-line customer-readable description. For Azure ACRE/AMR tickets, this is critical because customer-facing automation reads section 0. For non-Azure tickets, still fill it in.
-- **Sections 1-5** — leave as placeholders. Engineering / PM fills these during triage and dev.
+**ADF format** — IF you're filing an Azure ACRE/AMR ticket and need to populate section 0, the field is a textarea so it still requires ADF (per the Known Validation Gotchas section below).
 
 **ADF format** — textarea custom fields require ADF (per the Known Validation Gotchas section below):
 

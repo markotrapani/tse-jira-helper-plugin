@@ -368,16 +368,36 @@ Everything else. Redis Software (Enterprise / ACRE) / Redis Cloud operational is
 then narrow to the technical cause hypothesis if known. Reference specific subsystems/
 functions affected. Keep under ~150 words.}
 
-## Root Cause                                    [OPTIONAL]
+## Possible Root Cause (TSE hypothesis — please verify)   [OPTIONAL]
 
-{Only include if TSE+eng have a hypothesis. Code snippets in fenced blocks. Reference
-specific files / functions / line numbers. Use bullets / numbered lists for steps in
-the broken logic.}
+{Only include when TSE has a code-level hypothesis. Open with an Analysis Note callout
+acknowledging AI-assisted analysis if applicable, e.g.:
+
+> **Analysis note:** This hypothesis was developed from Support-side reading of the
+> source with AI assistance. It is offered as a starting point for R&D investigation,
+> not a declaration of root cause. The TSE filing this Jira does not own this codebase
+> and may have misread the semantics — please verify before acting.
+
+Use conditional language ("If the above reading is correct, ...", "appears to", "would
+seem to") — not "is" / "causes" / "the fix is". File:line refs are facts and don't
+need softening. The interpretation does.}
 
 ## Customer Impact
 
 {Bullet list. Each bullet = a concrete observable behavior.}
 - ...
+
+## Impact Score
+
+**Final Score: {N} ({BAND})** — see the [Impact Score Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0).
+
+{6-component markdown table with reasoning per row, then a note: "📸 TSE action after
+publish: open the [Impact Score Sheet], filter / add a row for this Jira matching the
+breakdown above, then paste a screenshot of that row into this section in the browser."}
+
+Score is a recommendation pending team leader confirmation. **Score must be an integer
+in customfield_10585.** Do NOT post the breakdown as a comment, and do NOT populate
+customfield_10681 — both supersede earlier guidance.
 
 ## Steps to Reproduce
 
@@ -407,10 +427,13 @@ fenced code blocks. Use bolded subheaders if you have multiple evidence types.}
 
 (see Workaround field — `customfield_10374`)
 
-## Suggested Fix                                 [OPTIONAL]
+## Asks for R&D                                  [OPTIONAL]
 
-{Short paragraph or two with the proposed code/behavior change. Only when TSE+eng
-have a hypothesis.}
+{Phrase as questions/requests, not prescriptions. Examples:
+"Please verify whether <X>." / "Could you also check <Y>." / "Test gap (low-confidence
+ask): <Z>." / Close with: "If R&D concludes the root cause is unrelated to the
+Support-side hypothesis, we'd appreciate a one-liner so we can refine triage."
+Only when TSE has hypotheses or specific asks.}
 
 ## Related Code Paths                            [OPTIONAL]
 

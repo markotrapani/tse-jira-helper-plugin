@@ -15,6 +15,10 @@ Shortcut for the `tse-jira-ticket-creation` skill — Workflow C (impact score e
 
 **Input contract** — one or more Jira PDFs or live Jira keys are **required**. The optional second set after `--` provides Zendesk PDFs for supplemental customer/frequency context.
 
+### Invoking without arguments — interactive mode (v0.12+)
+
+`/tse-jira:score` with no arguments drops into **interactive mode**: asks for the Jira key(s) or PDF path(s), then offers supplemental Zendesk context. Validation runs as you go — malformed keys re-prompt, live keys are verified via `getJiraIssue` (read-only). See [SKILL.md → Interactive Mode](../skills/tse-jira-ticket-creation/SKILL.md).
+
 ## Behavior
 
 Invokes the `tse-jira-ticket-creation` skill, Workflow C:

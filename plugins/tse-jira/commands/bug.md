@@ -19,6 +19,12 @@ Shortcut for the `tse-jira-ticket-creation` skill — Workflow A (Bug filing). *
 
 **Input contract** — one or more Zendesk PDFs are **required**; the optional second set after `--` provides supporting context (related Jira PDFs or live keys). The `--publish` flag enables publish mode.
 
+### Invoking without arguments — interactive mode (v0.12+)
+
+`/tse-jira:bug` with no arguments drops into **interactive mode**: the skill asks for the Zendesk PDF(s), checks the directory for sibling screenshots, asks for related Jiras (or `none`), confirms project + severity, and only then drafts the preview. Validation runs as you go — bad paths or malformed Jira keys re-prompt rather than coasting forward. See [SKILL.md → Interactive Mode](../skills/tse-jira-ticket-creation/SKILL.md) for the full flow.
+
+Prefer interactive mode when you're starting from "I have a ticket, help me file this" rather than "I know the exact paths and keys." Use the CLI form when scripting or repeating a known flow.
+
 ## Mode: Dry-Run (default) vs Publish
 
 ### Dry-run (default)
