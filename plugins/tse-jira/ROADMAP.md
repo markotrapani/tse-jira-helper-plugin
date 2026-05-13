@@ -46,6 +46,23 @@ Behavioral rules that have been captured as session memory but are not yet hard-
     - Update `references/impact-score-model.md` "Posting on the Ticket" section to point at `customfield_10681` instead of body.
     - Pre-flight Checks in dry-run preview should list each field's destination (Workaround → field / Impact Score details → field / Action Items → field) with ADF status.
 
+- [ ] **Visual structure: horizontal separators between major sections + collapsible `expand` for long technical content** (preference 2026-05-13)
+  - Marko's design preference: separate major H2 sections with horizontal rules; hide long technical content (Terraform error dumps, raw ADF, multi-page code excerpts) behind Jira's expand macro so the description stays scannable.
+  - **Horizontal rules — easy.** ADF has a `rule` node. The MCP's markdown→ADF converter maps `---` on its own line to `rule`. Just include `---` between major sections in the description body. No code changes needed; just update `references/zendesk-bug-mapping.md` body template to use them.
+  - **Expand macros — harder.** Jira Cloud expand is an ADF node:
+    ```jsonc
+    { "type": "expand", "attrs": { "title": "Click to see raw error output" },
+      "content": [ /* nested paragraphs / code blocks / etc */ ] }
+    ```
+    The MCP markdown→ADF converter has no native expand syntax — `<details>` and `{expand}` Confluence-macro forms are dropped or passed through as text. To get real collapsibles, the description must be passed with `contentFormat: adf` and `expand` nodes constructed as JSON.
+  - **Implementation paths:**
+    1. **Markdown-mode only:** add `---` between sections. Skip expand. Description stays readable inline; long blocks (Actual Behavior code, raw ADF examples) stay visible. Cheapest.
+    2. **ADF-mode for description:** switch the entire description to ADF. Enables expand. Requires the skill to construct an ADF document for the description (much more verbose than markdown). Custom fields already use ADF, so the templating cost is incremental but real.
+    3. **Hybrid: markdown for prose + ADF substitution for specific sections.** Render the description body as markdown, then run a post-process that replaces `{{EXPAND title="X"}}...{{/EXPAND}}` markers with `expand` ADF nodes before sending. Most complex; preserves authoring readability.
+  - **Recommendation when implementing:** start with path 1 (horizontal rules only). Measure whether the description still feels too long after that. Only escalate to path 2 if expand becomes necessary for specific known-long sections (raw TF apply output, multi-page debug logs).
+  - **Integration target:** `references/zendesk-bug-mapping.md` body template (add `---` between H2 sections); SKILL.md interactive flow (offer the TSE the choice "wrap long technical blocks in expand?" at preview time if path 2 is implemented).
+  - **Quick empirical test before committing:** create a test Jira in a sandbox project with `---` and an expand macro via the MCP, then `getJiraIssue` with `responseContentFormat: adf` to confirm both round-trip correctly. Cheap to validate.
+
 - [ ] **Description body needs explicit image-paste markers, not abstract "see attached" references** (observation 2026-05-13, post-publish of RED-196844)
   - Current pattern: `See the attached "Override Region block.png" for the customer's exact HCL screenshot.` — names the file but doesn't tell the TSE filing the Jira *where* in the description body to paste the image after they upload it.
   - Better pattern: explicit paste-here markers at the spot the image belongs:
