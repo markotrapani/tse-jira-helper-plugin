@@ -209,25 +209,39 @@ Why integer-only: the field is consumed by triage tooling that treats it as a wh
 
 ### ADF skeleton for `customfield_10681`
 
+⚠️ **Do NOT include a "Max" column** in the breakdown table. It duplicates info already in the component definitions in this doc and is visual filler in the rendered Jira UI. Use 3 columns only: Component / Score / Reasoning. Similarly, do NOT use `<X>/38` denominator-inline syntax — just `<X>`.
+
+Use a 3-column ADF table (Component / Score / Reasoning) followed by Base / CloudOps mult / Customer mult / Final rows. Per the RED-196844 (Aetna TF bug) production filing pattern:
+
 ```jsonc
 {
   "type": "doc", "version": 1,
   "content": [
     { "type": "paragraph", "content": [
       { "type": "text", "text": "Final Score: <N> (<BAND>)", "marks": [{"type":"strong"}] },
-      { "type": "text", "text": " — Base <B> × (1 + <CloudOps_mult> + <Customer_mult>)." }
+      { "type": "text", "text": " — Base <B> × (1 + <CloudOps_mult> + <Customer_mult>) = <raw> → floored to <N> per \"lean lower\" guidance." }
     ]},
-    { "type": "bulletList", "content": [
-      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
-        { "type": "text", "text": "Impact & Severity: <X>/38", "marks": [{"type":"strong"}] },
-        { "type": "text", "text": " — <reasoning>" }
-      ]}]},
-      // ... one listItem per component (Customer ARR, SLA Breach, Frequency, Workaround, RCA AI)
+    { "type": "table", "attrs": {"isNumberColumnEnabled": false, "layout": "default"}, "content": [
+      // Header row: Component / Score / Reasoning
+      { "type": "tableRow", "content": [
+        { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Component" }]}]},
+        { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Score" }]}]},
+        { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Reasoning" }]}]}
+      ]},
+      // 6 component rows (Impact & Severity, Customer ARR, SLA Breach, Frequency, Workaround, RCA Action Item)
+      // — each: tableCell{Component-name} / tableCell{integer-score} / tableCell{one-line-reasoning}
+      // Then Base row: bold "Base" / bold integer / empty cell
+      // Then CloudOps mult. row: name / "0.NN" / reasoning
+      // Then Customer mult. row: name / "0.NN" / reasoning
+      // Then Final row: bold "Final" / bold integer / "Band: <BAND>. Raw <raw> → floored per 'lean lower'."
     ]},
     { "type": "paragraph", "content": [
-      { "type": "text", "text": "Multipliers: CloudOps <m>%, Customer <m>%. Sheet link: " },
-      { "type": "text", "text": "Impact Score Sheet",
+      { "type": "text", "text": "Sheet link: " },
+      { "type": "text", "text": "Impact Score Sheet (row to be added for <new-key>)",
         "marks": [{"type":"link","attrs":{"href":"https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0"}}]}
+    ]},
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "Screenshot of the Sheet row to be pasted here by TSE after manually adding the row.", "marks": [{"type":"em"}] }
     ]},
     { "type": "paragraph", "content": [
       { "type": "text", "text": "Score is a recommendation pending team leader confirmation." }

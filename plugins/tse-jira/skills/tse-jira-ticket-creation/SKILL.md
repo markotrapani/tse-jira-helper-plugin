@@ -559,19 +559,19 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - Score (e.g., "16/16")
    - Reasoning (e.g., "found 'multiple occurrences' across 3 Zendesk threads")
 4. **Compute base + final** (`base × (1 + CloudOps_mult + Customer_mult)`).
-5. **Output** structured breakdown:
+5. **Output** structured breakdown. **Do NOT include a "Max" column** — it duplicates info from the component definitions in [`references/impact-score-model.md`](references/impact-score-model.md) and is filler in the Jira UI. Use 3 columns: Component / Score / Reasoning.
    ```
-   IMPACT SCORE: 78.0 (HIGH)
+   IMPACT SCORE: 78 (HIGH)
    Base: 78  Multipliers: CloudOps=0, Customer=0
 
-   | Component         | Score | Max | Reasoning                          |
-   |-------------------|-------|-----|------------------------------------|
-   | Impact & Severity | 30    | 38  | P2 — service degraded              |
-   | Customer ARR      | 15    | 15  | Azure (>$1M)                       |
-   | SLA Breach        | 8     | 8   | Breach claim in ticket             |
-   | Frequency         | 16    | 16  | >4 occurrences over 2 weeks        |
-   | Workaround        | 5     | 15  | Simple restart workaround          |
-   | RCA Action Item   | 8     | 8   | Linked to existing RCA             |
+   | Component         | Score | Reasoning                          |
+   |-------------------|-------|------------------------------------|
+   | Impact & Severity | 30    | P2 — service degraded              |
+   | Customer ARR      | 15    | Azure (>$1M)                       |
+   | SLA Breach        | 8     | Breach claim in ticket             |
+   | Frequency         | 16    | >4 occurrences over 2 weeks        |
+   | Workaround        | 5     | Simple restart workaround          |
+   | RCA Action Item   | 8     | Linked to existing RCA             |
 
    Per Support standard, the team leader should confirm this score before applying to the ticket(s).
    ```

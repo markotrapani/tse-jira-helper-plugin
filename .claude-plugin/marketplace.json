@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Redis Technical Support Engineer tooling for Claude Code. Umbrella marketplace — current plugins: tse-jira (Bug/RCA/score). Future plugins: RCA tooling, support-package analyzers, Grafana helpers, etc.",
-    "version": "0.14.2"
+    "version": "0.14.3"
   },
   "plugins": [
     {
       "name": "tse-jira",
       "source": "./plugins/tse-jira",
       "description": "Create Redis Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, and compute impact scores. Four slash commands: /tse-jira:new (interactive router), /tse-jira:bug, /tse-jira:rca, /tse-jira:score — each command falls back to interactive mode when invoked without args. v0.14 adds: Glean Search for semantically-related Jiras, template-substitution HTML preview (50% faster than write-from-scratch), expand-macro hint markers for long technical sections. Description body holds narrative only; metadata content lives in dedicated custom fields per real Jira UI layout. Dry-run by default.",
-      "version": "0.14.2",
+      "version": "0.14.3",
       "category": "support",
       "tags": ["jira", "redis", "tse", "zendesk", "rca", "atlassian", "interactive"]
     }

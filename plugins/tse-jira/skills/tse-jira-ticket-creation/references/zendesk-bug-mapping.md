@@ -660,27 +660,33 @@ If the user provides one or more related Jira PDFs alongside the Zendesk PDFs:
 2. Include keys in the "Related Tickets" section of the Bug's description.
 3. After Bug creation, call `createIssueLink` with type `Relates` (id 10003) — `inwardIssueKey` = new Bug, `outwardIssueKey` = each related Jira.
 
-## Comment with Impact Score Breakdown (Post-Creation Step)
+## Impact Score Breakdown (`customfield_10681` content — NOT a comment, v0.13+)
 
-After Bug creation, post a comment containing the 6-component breakdown:
+⚠️ **CORRECTED in v0.13+:** the breakdown does NOT go in a post-creation comment. It goes in `customfield_10681` (Impact Score details) — the dedicated UI field rendered below the description — as an ADF document. The ADF skeleton is in [`impact-score-model.md` → "ADF skeleton for `customfield_10681`"](./impact-score-model.md).
+
+⚠️ **Do NOT include a "Max" column** in the breakdown table. It duplicates info from the component definitions and is visual filler in the rendered Jira UI. Use 3 columns: Component / Score / Reasoning.
+
+Markdown equivalent (the textual layout the ADF skeleton renders):
 
 ```markdown
-## Impact Score Breakdown
+**Final Score: {n} ({BAND})** — Base {n} × (1 + {CloudOps_mult} + {Customer_mult}).
 
-**Final Score:** {n} ({BAND})
-**Base:** {n}  **Multipliers:** CloudOps={m1}, Customer={m2}
+| Component         | Score | Reasoning |
+|-------------------|-------|-----------|
+| Impact & Severity | {n}   | {reason}  |
+| Customer ARR      | {n}   | {reason}  |
+| SLA Breach        | {n}   | {reason}  |
+| Frequency         | {n}   | {reason}  |
+| Workaround        | {n}   | {reason}  |
+| RCA Action Item   | {n}   | {reason}  |
+| **Base**          | **{n}** |         |
+| CloudOps mult.    | {m1}  | {reason}  |
+| Customer mult.    | {m2}  | {reason}  |
+| **Final**         | **{n}** | Band: {BAND}. {floor note} |
 
-| Component         | Score | Max | Reasoning |
-|-------------------|-------|-----|-----------|
-| Impact & Severity | {n}   | 38  | {reason}  |
-| Customer ARR      | {n}   | 15  | {reason}  |
-| SLA Breach        | {n}   | 8   | {reason}  |
-| Frequency         | {n}   | 16  | {reason}  |
-| Workaround        | {n}   | 15  | {reason}  |
-| RCA Action Item   | {n}   | 8   | {reason}  |
-
-_Per Support standard, impact score should be confirmed by the team leader._
-_Reference: [Impact Score model](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553)_
+Sheet link: [Impact Score Sheet (row to be added for {new-key})](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0)
+_Screenshot of the Sheet row to be pasted here by TSE after manually adding the row._
+Score is a recommendation pending team leader confirmation.
 ```
 
 ## Anti-patterns
