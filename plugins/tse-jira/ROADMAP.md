@@ -36,6 +36,41 @@ Behavioral rules that have been captured as session memory but are not yet hard-
   - Real-world catch: Aetna TF bug v0.12 production filing included a "Key-name discrepancy" subsection (rfcTaxiAutomation-key vs taxi-redis-key) that wasn't load-bearing for the bug mechanism — removed in correction-pass after Marko flagged it.
   - **Integration target:** add a "Relevance filter" subsection to `references/zendesk-bug-mapping.md`'s "What to extract" guidance.
 
+- [ ] **Dedicated custom-field sections (Workaround / Impact Score details / Action Items) — not body H2s** (memory: `feedback-dedicated-custom-field-sections`, 2026-05-13)
+  - The RED project's Bug create/edit screen renders dedicated textarea sections below the description: RCA, Action Items, Release Notes, Workaround, Impact Score details. Content belongs in the **fields**, not in body H2 sections.
+  - Real-world catch: RED-196844 (v0.12.0 Aetna TF bug filing) had body `## Workaround`, `## Impact Score`, and `## Asks for R&D` H2 sections that should have been (or also been) the corresponding field values: `customfield_10374`, `customfield_10681`, `customfield_10672`.
+  - **Supersedes:** the earlier `feedback-impact-score-workflow` rule that said "add `## Impact Score` H2 to description body" — that destination was wrong. The Google Sheet → screenshot workflow is still valid, but the paste destination is the **Impact Score details field**, not a body section.
+  - **Integration target:**
+    - Update `references/zendesk-bug-mapping.md` description-body template to remove `## Workaround`, `## Impact Score`, `## Asks for R&D` H2 sections.
+    - Update `references/jira-schema.md` to clearly document each dedicated field as the canonical content destination (currently buried in the field reference table — should be promoted to a "Description body vs custom-field sections" rules block at the top).
+    - Update `references/impact-score-model.md` "Posting on the Ticket" section to point at `customfield_10681` instead of body.
+    - Pre-flight Checks in dry-run preview should list each field's destination (Workaround → field / Impact Score details → field / Action Items → field) with ADF status.
+
+- [ ] **Description body needs explicit image-paste markers, not abstract "see attached" references** (observation 2026-05-13, post-publish of RED-196844)
+  - Current pattern: `See the attached "Override Region block.png" for the customer's exact HCL screenshot.` — names the file but doesn't tell the TSE filing the Jira *where* in the description body to paste the image after they upload it.
+  - Better pattern: explicit paste-here markers at the spot the image belongs:
+    ```
+    📸 _Paste `Override Region block.png` here._
+    ```
+    Or even more explicit:
+    ```
+    [ ⬇️  paste customer's HCL screenshot here: `Override Region block.png`  ⬇️ ]
+    ```
+  - Each marker should:
+    - Use a distinctive emoji or bracket convention so it's easy to spot scrolling the body
+    - Name the file explicitly (path basename only — TSE matches against their local download)
+    - Sit at the exact paragraph where the image should land in the rendered Jira
+    - Be self-deleting after paste — i.e., the TSE removes the marker line when they drop the image (or the marker becomes the image's caption)
+  - **Integration target:** update `references/zendesk-bug-mapping.md` and SKILL.md "Workflow A" guidance to use this pattern in `## Steps to Reproduce` and `## Evidence from Support Case`. Update HTML preview's `.screenshot` block CSS to render the marker visually (e.g., dashed border, "PASTE HERE" overlay).
+  - Same applies to Workaround / Action Items / Impact Score details fields if they need images — paste-here markers at the right spot.
+
+- [ ] **`## Customer Impact` H2 may be redundant** (observation 2026-05-13, post-publish of RED-196844)
+  - Customer impact is often implied through other elements of a well-formed Bug: the Summary names the symptom, the Customer ARR component of the impact score captures business weight, the Workaround field describes whether the customer is blocked, the Affected Organizations field names who's affected. A dedicated `## Customer Impact` bullet list can end up restating these.
+  - Marko's framing: "I also don't think 'Customer Impact' is totally justified as its own section since this is kind of implied throughout."
+  - **Decision needed:** make it optional in the template (include only when the impact is non-obvious from the rest), or drop entirely from the default body template.
+  - The canonical [RED-194253](https://redislabs.atlassian.net/browse/RED-194253) does have a Customer Impact section, but its description is heavier on raw customer-visible behavior (cluster unhealthy, CRDB sync fails, specific error strings) that doesn't double up with Summary. The RED-196844 (Aetna) version was more abstract ("blocks adoption", "breaks idempotency") — these read as restated framing.
+  - **Integration target:** update `references/zendesk-bug-mapping.md` description-body template — mark `## Customer Impact` as OPTIONAL with a guidance note: "Include only when the customer-visible behavior is concrete and non-obvious from Summary. Skip when impact is implied through ARR, Affected Organizations, Workaround, or the symptom narrative."
+
 - [ ] **Short AI-acknowledgment publishes; verbose Analysis Note doesn't** (memory: `feedback-tse-humility-with-rd`, refined 2026-05-13)
   - The full Analysis Note paragraph stays in preview-only metadata (top of `.md` / banner in `.html`).
   - A one-line acknowledgment at the start of "Possible Root Cause" — e.g., "Support-side hypothesis (AI-assisted code review of `<repo> @ <tag>`) — please verify." — DOES go in the publish-bound body. R&D readers need this signal for trust calibration.
