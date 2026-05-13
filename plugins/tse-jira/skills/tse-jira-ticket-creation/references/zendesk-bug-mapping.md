@@ -381,6 +381,44 @@ For each screenshot the TSE will manually attach in the browser post-create, pla
 
 The marker should: (a) sit at the exact paragraph where the image renders best, (b) name the basename of the file, (c) be deleted (or become the image's caption) once the TSE drops the image in the browser. Avoid abstract "see attached X.png" prose scattered through the body — the filing TSE may not know where to drop each image.
 
+### Expand-macro hint markers (v0.14+)
+
+Jira Cloud supports collapsible `{expand}` macros (and the equivalent ADF `expand` node). The MCP markdown-to-ADF converter doesn't handle expand syntax natively, so the skill **cannot** auto-wrap long sections in collapsibles at file time. Instead, the skill places **hint markers** in the body at long-technical-content boundaries, and the filing TSE manually wraps the content using the Jira UI's "/expand" insert-menu after publish.
+
+When to insert a hint marker:
+
+- Raw `terraform apply` / `redis-cli` / cnm_http error output >15 lines
+- Multi-page debug log excerpts
+- Code analysis blocks with verbose stack traces or token streams
+- Any fenced code block that visually dominates the section
+
+Marker pattern (Jira-ignored if not converted; clearly TSE-actionable):
+
+```markdown
+📍 _Long content below — recommend wrapping in **`{expand title="..."}`** in the Jira UI after publish (Insert menu → Expand)._
+
+```
+<the long content — fenced code block, log excerpt, etc.>
+```
+```
+
+Concrete example for the Aetna canonical:
+
+```markdown
+## Actual Behavior
+
+Each override region apply returns:
+
+📍 _Long content below — recommend wrapping in **`{expand title="Raw Terraform error (us-east4 region)"}`** in the Jira UI after publish (Insert menu → Expand)._
+
+```
+Error: Provider produced inconsistent result after apply
+... (15+ lines)
+```
+```
+
+Why this approach (vs auto-conversion): full auto-wrap requires the skill to pass the entire description as ADF JSON (not markdown). The MCP's markdown converter doesn't expose expand. Switching to ADF mode loses the convenience of markdown for the surrounding prose. **The hint-marker approach is a v0.14 minimum-viable solution** — auto-wrap stays on ROADMAP for v0.15+.
+
 ## Description Body Template
 
 **Anchored to [`canonical-jiras/RED-194253-bug-cert-chain.md`](./canonical-jiras/RED-194253-bug-cert-chain.md).** Use H2 sections, not a flat label-prefix block. Customer/cluster/subscription/BDB data lives **only** in custom fields — do NOT duplicate them as bolded prefix lines in the description. Major H2 sections are separated by horizontal rules (`---`) for visual scannability.

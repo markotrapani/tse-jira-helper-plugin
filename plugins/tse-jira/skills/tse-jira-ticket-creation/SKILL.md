@@ -346,7 +346,26 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - Frequency indicators ("multiple times", "intermittent")
    - Cluster name, region, product version
    - Cloud (Azure / AWS / GCP), product (Redis Software / Cloud / RDI)
-   - ⭐ **NEW in v0.13**: **Auto-infer related Jiras** — scan the PDF text for Jira-key patterns (`\b[A-Z]+-\d+\b`) and Atlassian browse URLs (`redislabs\.atlassian\.net/browse/<KEY>`). De-duplicate by key. Present detected keys as default candidates in the interactive prompt: *"I found these Jira keys in the Zendesk thread: `<KEY-1>` (mentioned Nx), `<KEY-2>` (mentioned Nx). Use as related? [yes / pick subset / add more / none]"*. Verify each detected key via `getJiraIssue` (read-only) before adding to the payload. The TSE shouldn't have to remember which Jiras were cited.
+   - ⭐ **Auto-infer related Jiras** (v0.13+) — scan the PDF text for Jira-key patterns (`\b[A-Z]+-\d+\b`) and Atlassian browse URLs (`redislabs\.atlassian\.net/browse/<KEY>`). De-duplicate by key. Verify each detected key via `getJiraIssue` (read-only).
+   - ⭐ **NEW in v0.14**: **Also run Glean Search for semantically-related Jiras** — Glean often surfaces relevant tickets the customer didn't explicitly cite in the thread (e.g., tickets from other customers with the same symptom, internal OPCR/IR tickets discussing the underlying issue). Procedure:
+     1. Construct a SHORT query: `<customer-name> <key-technical-signal>` — e.g., `Aetna terraform`, `monday.com dmc CPU`, `Walmart CRDB replication`. Single high-signal noun pair. Don't query-stuff per Glean MCP guidelines.
+     2. Call `mcp__claude_ai_Glean__search` with `query` + `app: "jira"` + `num_results: 10`.
+     3. ⚠️ **Glean responses are verbose (often >25KB)** and may overflow the agent token budget. The MCP automatically saves overflow responses to a file and returns the path. **Use `grep` on that file** rather than reading the full response:
+        ```bash
+        grep -oE 'browse/[A-Z]+-[0-9]+' /path/to/saved/glean-response.txt | sort -u
+        ```
+        This extracts every Jira key Glean surfaced, one per line, deduplicated.
+     4. **Filter results**: keep only keys whose project is plausible for this bug (RED / MOD / DOC / RDSC / FR / OPCR for cross-team-related). Drop keys that are obviously the wrong project (e.g., HR-, MKTG- tickets).
+     5. **De-duplicate against PDF-text inference** (Step 2's first bullet). Keys appearing in both PDF and Glean are STRONG candidates.
+     6. **Present in the interactive prompt** as a layered question:
+        > "Two sources of candidate Related Jiras:
+        > - From the Zendesk PDF text: `RED-176559`, `RED-184754` (these two were explicitly cited)
+        > - Additional candidates from Glean Search (`<customer> <signal>`): `RED-147548`, `RED-190334`, `RED-195595` (related but not cited in the thread)
+        >
+        > Use which? [PDF-only / PDF + select Glean / all / custom list / none]"
+     7. **Verify each candidate** with `getJiraIssue` (read-only) before adding to the createIssueLink calls. Drop any that return 404 or are obviously closed/duplicated to something else.
+     8. **If the Glean MCP is not available** (e.g., user's session doesn't have it connected): skip Glean and proceed with PDF-text inference only. Log "Glean unavailable — using PDF-text inference only" in the preview's pre-flight checks.
+     The TSE shouldn't have to remember which Jiras were cited OR which other Jiras might be related — the skill does both inferences automatically and asks for selection.
 3. **Compute impact score** — apply [`references/impact-score-model.md`](references/impact-score-model.md). Show 6-component breakdown with reasoning. **Flag that the score is a recommendation pending team leader confirmation.**
 4. **Auto-detect project** — apply rules in [`references/zendesk-bug-mapping.md`](references/zendesk-bug-mapping.md) (RDSC → MOD → DOC → RED). State the detected project; let the user override.
 
@@ -416,9 +435,22 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
    - See [`references/zendesk-bug-mapping.md` → Description Body Template](references/zendesk-bug-mapping.md) for the full template, field-destination map, and anti-patterns.
 7. **Preview** — Ask the user for severity confirmation if not provided. Resolve Affected Organizations via paginated search. Build the full payload structures (createJiraIssue, addCommentToJiraIssue, createIssueLink calls).
 8. **Dry-run by default** — Write **BOTH** preview files (v0.9+):
-   1. `~/tse-jira-previews/RED-bug-<timestamp>.md` — markdown per the "Mode" section above
-   2. `~/tse-jira-previews/RED-bug-<timestamp>.html` — Jira-mimicking HTML rendering using `references/preview-template.html` as the structural template, with field values + markdown content (description, comment, workaround) substituted into the placeholder tokens
-   3. Run `open ~/tse-jira-previews/RED-bug-<timestamp>.html` to launch the user's default browser (skip silently if `open` is unavailable / non-macOS)
+   1. `~/tse-jira-previews/RED-bug-<timestamp>.md` — markdown per the "Mode" section above. Write directly with the `Write` tool.
+   2. ⭐ **CRITICAL CHANGE in v0.14**: `~/tse-jira-previews/RED-bug-<timestamp>.html` — **DO NOT write the HTML preview from scratch with the `Write` tool.** The template is ~530 lines of CSS + layout boilerplate that's identical across filings; re-writing it from scratch is slow (~30+ seconds of agent tokens per filing) and prone to drift.
+      - **Instead, use the helper script** [`plugins/tse-jira/scripts/render-html-preview.py`](../../../scripts/render-html-preview.py):
+        1. Write the field values to a temporary fields.json (use `Write` tool; format documented in [`plugins/tse-jira/scripts/fields.schema.md`](../../../scripts/fields.schema.md)).
+        2. Convert the description body's markdown to HTML inline (handle `## H2 → <h2>`, fenced code → `<pre><code>`, tables → `<table>`, lists → `<ul>/<ol>`, links, inline code) — this becomes the `DESCRIPTION_HTML` scalar value.
+        3. Construct the JSON payload strings (CREATE_PAYLOAD_JSON, LINK_PAYLOADS_JSON, etc.) as the values you'd pass to MCP at publish time.
+        4. Invoke the script via `Bash` tool:
+           ```bash
+           python3 <plugin-cache-dir>/scripts/render-html-preview.py \
+             --template <plugin-cache-dir>/skills/tse-jira-ticket-creation/references/preview-template.html \
+             --input /tmp/<ts>.fields.json \
+             --output ~/tse-jira-previews/RED-bug-<ts>.html
+           ```
+        5. The script substitutes all 45 placeholders + 4 loop expansions in one pass. Output is byte-identical across runs given the same input. No agent-token cost beyond writing the JSON inputs.
+        6. (Optional) delete the fields.json after success.
+   3. Run `open ~/tse-jira-previews/RED-bug-<timestamp>.html` to launch the user's default browser (skip silently if `open` is unavailable / non-macOS).
    4. Report **both** file paths as clickable `file://` URLs in the terminal output. **DO NOT call any MCP write tool yet.**
 9. **Wait for explicit publish keyword.** Acceptable: `--publish` flag in the original invocation, or a follow-up message containing the word "publish" referring to this preview. Implicit confirmations ("yes", "go", "looks good") are **NOT sufficient** — clarify.
 10. **On publish (and only on publish):**
