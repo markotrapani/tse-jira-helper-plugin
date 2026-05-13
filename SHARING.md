@@ -3,6 +3,8 @@
 > **One-pager designed for sharing with the Redis CS / Support team.** Copy this into a Confluence page, Slack thread, or email. Self-contained.
 >
 > This is the **umbrella marketplace doc**. For details on a specific plugin, follow the link in the table below.
+>
+> 🌐 **Also available in Confluence** (CS space → Support Tools): [Redis TSE Tools — Claude Code marketplace for the CS team](https://redislabs.atlassian.net/wiki/spaces/CS/pages/6290178075). The repo version (this file) is the canonical source; Confluence mirrors it.
 
 ---
 

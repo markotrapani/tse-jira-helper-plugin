@@ -3,10 +3,14 @@
 Umbrella **Claude Code marketplace** for Redis Technical Support Engineers. Currently hosts one plugin; future ones (RCA tooling, support-package analyzers, Grafana helpers, etc.) will land here too.
 
 > 📣 **New TSE? Just want to use it?**
-> - **Marketplace overview** (what this is, contribution guide for new plugins): [`SHARING.md`](./SHARING.md)
-> - **`tse-jira` plugin — 60-second install + first-use:** [`plugins/tse-jira/SHARING.md`](./plugins/tse-jira/SHARING.md)
+> - **Marketplace overview** (what this is, contribution guide for new plugins):
+>   - In Confluence (CS space → Support Tools): [Redis TSE Tools — Claude Code marketplace for the CS team](https://redislabs.atlassian.net/wiki/spaces/CS/pages/6290178075)
+>   - In this repo: [`SHARING.md`](./SHARING.md)
+> - **`tse-jira` plugin — 60-second install + first-use:**
+>   - In Confluence: [tse-jira — Claude Code plugin for filing Jiras from Zendesk](https://redislabs.atlassian.net/wiki/spaces/CS/pages/6290243622)
+>   - In this repo: [`plugins/tse-jira/SHARING.md`](./plugins/tse-jira/SHARING.md)
 >
-> Both are Confluence-ready (copy-paste into a page or Slack).
+> Confluence is the easier landing point for TSEs new to the marketplace. The repo files are the canonical source; Confluence mirrors them and may lag.
 
 ## Plugins in this marketplace
 

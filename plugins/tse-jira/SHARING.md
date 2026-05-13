@@ -3,6 +3,8 @@
 > **One-pager designed for sharing with the Redis CS / Support team.** Copy this into a Confluence page, Slack thread, or email. Self-contained.
 >
 > `tse-jira` is one plugin in the [**redis-tse-tools**](../../SHARING.md) Claude Code marketplace — the umbrella for TSE-focused Claude Code plugins maintained by the CS team. See the marketplace doc for what else is in there and how to add your own plugin.
+>
+> 🌐 **Also available in Confluence** (CS space → Support Tools → Redis TSE Tools): [tse-jira — Claude Code plugin for filing Jiras from Zendesk](https://redislabs.atlassian.net/wiki/spaces/CS/pages/6290243622). The repo version (this file) is the canonical source; Confluence mirrors it.
 
 ---
 
@@ -163,16 +165,16 @@ Now `claude-redis` opens a Redis-authed session; `claude-personal` opens a fresh
 ## Help, feedback, contributions
 
 - **Found a bug or have a suggestion?** Post in the Redis CS team Slack channel or file an issue at https://github.com/markotrapani/redis-tse-tools/issues.
-- **Want to read the full skill instructions?** [`plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md`](./plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md).
-- **Want to see what's coming?** [`plugins/tse-jira/ROADMAP.md`](./plugins/tse-jira/ROADMAP.md).
-- **Want the full feature reference + troubleshooting table?** [`README.md`](./README.md).
+- **Want to read the full skill instructions?** [`skills/tse-jira-ticket-creation/SKILL.md`](./skills/tse-jira-ticket-creation/SKILL.md).
+- **Want to see what's coming?** [`ROADMAP.md`](./ROADMAP.md).
+- **Want the full feature reference + troubleshooting table?** [`README.md`](../../README.md).
 
 ---
 
 ## Quick links
 
 - **Marketplace repo:** https://github.com/markotrapani/redis-tse-tools
-- **Plugin docs:** [`SKILL.md`](./plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md)
+- **Plugin docs:** [`SKILL.md`](./skills/tse-jira-ticket-creation/SKILL.md)
 - **Impact Score Sheet:** https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0
 - **Jira creation guide (Confluence):** https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958
 - **Impact Score doc (Confluence):** https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4267671553
