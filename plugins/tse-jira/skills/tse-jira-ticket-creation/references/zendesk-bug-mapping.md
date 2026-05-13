@@ -357,113 +357,164 @@ Match if subject contains "docs", "documentation", "redis.io", "broken link" wit
 
 Everything else. Redis Software (Enterprise / ACRE) / Redis Cloud operational issues, cluster behavior, DMC/proxy, replication, ACL, etc.
 
+## Description body vs custom-field sections — IMPORTANT (v0.13+)
+
+The RED Bug create/edit UI renders **dedicated custom-field sections below the description body**. Each is its own textarea (ADF). Content destined for these fields must go in the FIELDS, **not** duplicated as H2 sections in the description body. Verified by Marko screenshot 2026-05-13; corrected after RED-196844 was misfiled with content in body H2s.
+
+| UI section (rendered below description) | fieldId | TSE responsibility |
+|---|---|---|
+| **RCA** | `customfield_10063` | Leave blank — R&D fills during triage. Azure ACRE/AMR exception: populate section 0 only. |
+| **Action Items** | `customfield_10672` | If TSE has hypotheses or asks for R&D, put them here (NOT a body H2). |
+| **Release Notes** | `customfield_10676` (approx) | Leave blank — R&D / PM fills at resolution. |
+| **Workaround** | `customfield_10374` | The actual workaround text or "None known. <reason>". NOT a body H2. |
+| **Impact Score details** | `customfield_10681` | The 6-component breakdown + sheet-screenshot target. NOT a body H2. |
+
+**The description body should contain ONLY narrative sections:** Summary, Possible Root Cause (optional), Customer Impact (optional — see below), Steps to Reproduce, Expected Behavior, Actual Behavior, Evidence from Support Case, Related Code Paths (optional), Pending Information (optional), Related Jiras (optional — usually redundant with `createIssueLink`), Zendesk Reference.
+
+### Image-paste markers (v0.13+)
+
+For each screenshot the TSE will manually attach in the browser post-create, place an explicit paste marker at the spot the image belongs:
+
+```markdown
+📸 _Paste `Override Region block.png` here._
+```
+
+The marker should: (a) sit at the exact paragraph where the image renders best, (b) name the basename of the file, (c) be deleted (or become the image's caption) once the TSE drops the image in the browser. Avoid abstract "see attached X.png" prose scattered through the body — the filing TSE may not know where to drop each image.
+
 ## Description Body Template
 
-**Anchored to [`canonical-jiras/RED-194253-bug-cert-chain.md`](./canonical-jiras/RED-194253-bug-cert-chain.md).** Use H2 sections, not a flat label-prefix block. Customer/cluster/subscription/BDB data lives **only** in custom fields — do NOT duplicate them as bolded prefix lines in the description.
+**Anchored to [`canonical-jiras/RED-194253-bug-cert-chain.md`](./canonical-jiras/RED-194253-bug-cert-chain.md).** Use H2 sections, not a flat label-prefix block. Customer/cluster/subscription/BDB data lives **only** in custom fields — do NOT duplicate them as bolded prefix lines in the description. Major H2 sections are separated by horizontal rules (`---`) for visual scannability.
 
 ```markdown
 ## Summary
 
 {Single paragraph statement of the problem. Start with the customer-visible symptom,
 then narrow to the technical cause hypothesis if known. Reference specific subsystems/
-functions affected. Keep under ~150 words.}
+functions affected. Keep under ~150 words. Optionally include one line of environment
+context (subscription / cluster / topology) if load-bearing for the bug. Don't put a
+giant environment-details table in the body — that's filler.}
+
+---
 
 ## Possible Root Cause (TSE hypothesis — please verify)   [OPTIONAL]
 
-{Only include when TSE has a code-level hypothesis. Open with an Analysis Note callout
-acknowledging AI-assisted analysis if applicable, e.g.:
+{Only include when TSE has a code-level hypothesis. Open with a one-line AI-acknowledgment
+italicized at the top:
 
-> **Analysis note:** This hypothesis was developed from Support-side reading of the
-> source with AI assistance. It is offered as a starting point for R&D investigation,
-> not a declaration of root cause. The TSE filing this Jira does not own this codebase
-> and may have misread the semantics — please verify before acting.
+> *Support-side hypothesis (AI-assisted code review of `<repo> @ <tag>`) — please verify before acting.*
 
-Use conditional language ("If the above reading is correct, ...", "appears to", "would
-seem to") — not "is" / "causes" / "the fix is". File:line refs are facts and don't
-need softening. The interpretation does.}
+Then the hypothesis. Use conditional language ("If the above reading is correct, ...",
+"appears to", "would seem to") — not "is" / "causes" / "the fix is". File:line refs are
+facts and don't need softening; the interpretation does.
 
-## Customer Impact
+Do NOT include a verbose "Analysis Note" callout (that lives in preview-only metadata,
+not the publish-bound body). The one-line italicized acknowledgment is enough.}
 
-{Bullet list. Each bullet = a concrete observable behavior.}
+---
+
+## Customer Impact   [OPTIONAL]
+
+{Include only when the customer-visible behavior is concrete and non-obvious from the
+rest of the body. Skip when impact is implied through ARR / Affected Organizations
+field / Workaround field / the symptom narrative in Summary.
+
+Bullet list when included. Each bullet = a concrete observable behavior, not abstract
+framing ("blocks adoption" is abstract; "DMC proxy logs show SSL error" is concrete).}
+
 - ...
 
-## Impact Score
-
-**Final Score: {N} ({BAND})** — see the [Impact Score Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0).
-
-{6-component markdown table with reasoning per row, then a note: "📸 TSE action after
-publish: open the [Impact Score Sheet], filter / add a row for this Jira matching the
-breakdown above, then paste a screenshot of that row into this section in the browser."}
-
-Score is a recommendation pending team leader confirmation. **Score must be an integer
-in customfield_10585.** Do NOT post the breakdown as a comment, and do NOT populate
-customfield_10681 — both supersede earlier guidance.
+---
 
 ## Steps to Reproduce
 
-{Numbered list. Each step = concrete action. Sub-steps allowed where setup is complex.}
+{Numbered list. Each step = concrete action. Sub-steps allowed where setup is complex.
+Insert image-paste markers at spots where customer screenshots clarify the step:
+
+   📸 _Paste `<screenshot-name>.png` here._
+
+}
 1. ...
+
+---
 
 ## Expected Behavior
 
 {One short paragraph — what should happen.}
 
+---
+
 ## Actual Behavior
 
-{One short paragraph — what does happen.}
+{One short paragraph — what does happen. Image-paste markers OK for error-output
+screenshots.}
+
+---
 
 ## Evidence from Support Case
 
-{Concrete artifacts: file contents, log excerpts, config snippets, output dumps. Use
-fenced code blocks. Use bolded subheaders if you have multiple evidence types.}
+{Concrete artifacts the TSE collected. Use fenced code blocks for log excerpts /
+config snippets / output dumps. Use H3 subsections (### Title) for multiple evidence
+types. Each candidate H3 has to pass the relevance filter: "Does this directly support
+understanding or fixing the bug?" — if R&D would skim past, drop it.
 
-**Certificate Chain Uploaded** (...):
-    <fenced or indented block with the content>
+Image-paste markers for screenshots:
 
-**trusted_ca.pem Contents:**
-    <fenced or indented block>
+### <topic-of-evidence>
 
-## Workaround
+📸 _Paste `<file>.png` here._
 
-(see Workaround field — `customfield_10374`)
+<one-line caption noting what to look at in the screenshot>
 
-## Asks for R&D                                  [OPTIONAL]
+}
 
-{Phrase as questions/requests, not prescriptions. Examples:
-"Please verify whether <X>." / "Could you also check <Y>." / "Test gap (low-confidence
-ask): <Z>." / Close with: "If R&D concludes the root cause is unrelated to the
-Support-side hypothesis, we'd appreciate a one-liner so we can refine triage."
-Only when TSE has hypotheses or specific asks.}
+---
 
 ## Related Code Paths                            [OPTIONAL]
 
-{Bulleted list of file paths with function names + line numbers. Only when engineering
-analysis is present.}
+{Bulleted list of file paths with function names + line numbers. Cite real refs from
+codebase investigation — don't speculate. Format:
+
+- `path/to/file.go`
+  - line **NNN** — what's there
+  - lines **NNN–MMM** — what's there
+}
+
+---
 
 ## Pending Information                           [OPTIONAL]
 
 {Outstanding requests from the customer or open questions for triage.}
 - ...
 
-## Related Jiras                                 [OPTIONAL]
-
-{Linked tickets with one-line context. Issue links will also be created separately
-via createIssueLink — this section is for human readability.}
-- RED-XXXXX — {short context}
+---
 
 ## Zendesk Reference
 
 - Ticket: https://redislabs.zendesk.com/agent/tickets/{ticket_id}
 ```
 
+### Sections NOT in the body — content destination
+
+| Topic | Where it goes (NOT body) |
+|---|---|
+| **Workaround content** | `customfield_10374` (Workaround field) as ADF. If no workaround: "None known. <one-line reason>". |
+| **Impact Score breakdown** | `customfield_10681` (Impact Score details field) as ADF. Integer score itself goes in `customfield_10585`. Sheet-screenshot pasted into the field post-create. |
+| **Asks for R&D** | `customfield_10672` (Action Items field) as ADF. Frame as "Please verify whether X" / "Could you check Y" / "Test gap (low-confidence ask): Z". |
+| **RCA template** | `customfield_10063` — leave blank by default. Azure ACRE/AMR is the only exception. |
+| **Related Jira links** | Via `createIssueLink` (type `Relates`). The body's Related Jiras H2 section is redundant when formal links cover it; default to omitting. |
+
 ### Rules
 
 - **No bolded `Label: value` prefix block** at the top. Customer name, cluster/region, subscription, BDB IDs, product all live in fields. Per RED-194253 anchor.
-- **No "Customer expectations:" line** in the description body. The Confluence guide says to include customer expectations, but the canonical anchor (RED-194253) doesn't have a literal line — the expectation is implicit through structure (presence of "Suggested Fix" = fix wanted; presence of bug template populated = engineering investigation requested).
-- **Sections are optional unless marked otherwise.** A TSE-filed ticket at file-time typically has: Summary, Customer Impact, Steps to Reproduce, Expected, Actual, Evidence, Workaround (heading only), Pending Information, Zendesk Reference. The optional sections (Root Cause, Suggested Fix, Related Code Paths) appear when engineering work has happened.
-- **Code/config inline** uses fenced code blocks with language hints when possible (` ```bash `, ` ```python `).
+- **No "Customer expectations:" line** in the description body. The Confluence guide says to include customer expectations, but the canonical anchor (RED-194253) doesn't have a literal line — the expectation is implicit through structure (presence of "Possible Root Cause" = fix wanted; populated Action Items = engineering follow-up requested).
+- **Sections are optional unless marked otherwise.** A typical TSE-filed Bug at file-time has: Summary, Steps to Reproduce, Expected, Actual, Evidence, Zendesk Reference. Add Customer Impact / Possible Root Cause / Related Code Paths / Pending Information only when they earn their place.
+- **Zendesk-is-not-Jira relevance filter:** Each candidate Evidence / H3 subsection has to pass the test: "Does this directly support understanding or fixing the bug?" If R&D would skim past it, drop it. Padding from Zendesk trivia (internal-team observations, name discrepancies that don't bear on the bug mechanism, routing chatter) distracts from triage signal.
+- **Image-paste markers** (📸 `Paste <file>.png here.`) at the exact paragraph where each customer screenshot belongs. The TSE filing the Jira drops the image in the browser post-create — the marker tells them where.
+- **Horizontal rules** (`---`) between major H2 sections for visual scannability. ADF renders these as `rule` nodes via the markdown converter.
+- **Code/config inline** uses fenced code blocks with language hints when possible (` ```bash `, ` ```python `, ` ```go `).
 - **Numbered & bulleted lists** are the dominant body format. Plain prose is for Summary, Expected Behavior, Actual Behavior, and short paragraphs in other sections.
-- **Active-Active mapping table** goes inside `## Evidence from Support Case` as a sub-table (not its own H2).
+- **Active-Active mapping table** goes inside `## Evidence from Support Case` as an H3 subsection (not its own H2).
+- **Auto-infer related Jiras from Zendesk PDF text:** scan the PDF for `[A-Z]+-\d+` and `redislabs.atlassian.net/browse/<KEY>` URLs. Present detected keys as default candidates in the interactive prompt. The TSE shouldn't have to remember which Jiras were cited in the thread — the skill already has the text. De-duplicate by key. Verify each detected key via `getJiraIssue` (read-only) before adding to the payload.
 - **Log references** in `cluster_name, node_id, shard_id` format inside `## Evidence from Support Case`.
 - **Keep total description under ~3000 chars** when possible (RED-194253 is ~2500). Extract relevant content from Zendesk — don't paste the entire thread.
 

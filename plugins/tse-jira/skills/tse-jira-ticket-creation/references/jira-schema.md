@@ -11,6 +11,35 @@ Verified via `getVisibleJiraProjects`, `getJiraProjectIssueTypesMetadata`, `getJ
 - [RCA Initiation and Data Collection Procedure](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4575690753) — RCA creation procedure
 - [RCA-41](https://redislabs.atlassian.net/browse/RCA-41) — RCA template ticket (clone this)
 
+## Description body vs custom-field sections — read this FIRST (v0.13+)
+
+The RED Bug create/edit UI renders **dedicated custom-field sections below the description body**. Each is its own textarea (ADF) with a section-like rendering. Content destined for these fields must go in the FIELDS, **not** duplicated as H2 sections in the description body. This was clarified after RED-196844 was misfiled with content in body H2s (2026-05-13).
+
+| UI section (rendered below description) | fieldId | TSE responsibility at file-time |
+|---|---|---|
+| **RCA** | `customfield_10063` | **Leave blank.** R&D fills during triage. Azure ACRE/AMR exception: populate section 0 only. |
+| **Action Items** | `customfield_10672` | If TSE has hypotheses or asks for R&D, put them HERE (NOT a body H2). Frame as questions. |
+| **Release Notes** | `customfield_10676` (approx) | **Leave blank.** R&D / PM fills at resolution. |
+| **Workaround** | `customfield_10374` | The actual workaround text or "None known. <one-line reason>". NOT a body H2. ADF required. |
+| **Impact Score details** | `customfield_10681` | The 6-component breakdown + sheet-screenshot target. NOT a body H2. ADF required. |
+
+**Description body should contain ONLY narrative sections:**
+
+- Summary
+- Possible Root Cause *(optional — only with code-level hypothesis; open with one-line italicized AI-acknowledgment if applicable)*
+- Customer Impact *(optional — only when non-obvious from Summary / ARR / Workaround field)*
+- Steps to Reproduce
+- Expected Behavior
+- Actual Behavior
+- Evidence from Support Case
+- Related Code Paths *(optional — file:line refs from codebase investigation)*
+- Pending Information *(optional)*
+- Zendesk Reference
+
+H2 sections separated by `---` horizontal rules for visual scannability. Image-paste markers (`📸 _Paste \`<file>.png\` here._`) at the exact paragraph where each customer screenshot belongs.
+
+See [`zendesk-bug-mapping.md`](./zendesk-bug-mapping.md) → "Description Body Template" for the full template.
+
 ## RCA Template Block (`customfield_10063`)
 
 **TSE default: LEAVE BLANK.** Per Marko (2026-05-12 correction): "for that RCA section.. we don't have to fill it out. That is for R&D to fill out." This field is R&D's working area during triage and development — TSEs don't seed it.

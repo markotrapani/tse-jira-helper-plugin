@@ -194,18 +194,46 @@ Cases that impact deal closures, customer confidence, and ongoing efforts by cus
 
 ## Posting on the Ticket
 
-Real TSE practice (per Marko, 2026-05-12; supersedes the earlier Confluence-derived "post a comment" guidance):
+Real TSE practice (refined 2026-05-13 after RED-196844 production-filing review; supersedes both earlier "post a comment" and "add `## Impact Score` H2 to body" guidance):
 
 1. **Compute the score** using the [Impact Score Google Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0). Each ticket gets a row; the sheet does the math.
 2. **Set `customfield_10585`** (Impact Score) to the **integer** final score.
-3. **Add an `## Impact Score` H2 section in the description body** containing:
-   - One line: `**Final Score: <N> (<BAND>)** — see [Impact Score Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0).`
-   - The 6-component breakdown table as a markdown fallback (so the score is interpretable without the screenshot)
-   - A callout: "Screenshot of the sheet row for this Jira to be pasted by the TSE after creation."
-4. **Take a screenshot** of the row in the Google Sheet showing the breakdown; **paste it into the Impact Score section of the Jira** in the browser after `createJiraIssue` succeeds.
+3. **Populate `customfield_10681`** (Impact Score details) with an ADF document containing the 6-component breakdown. This is the **dedicated UI section** rendered below the description body — content does NOT go in a description-body H2 section.
+4. **Take a screenshot** of the row in the Google Sheet showing the breakdown; **paste it into the Impact Score details field** in the browser after `createJiraIssue` succeeds. The textual breakdown in `customfield_10681` acts as a fallback in case the screenshot isn't pasted.
 
 **Do NOT:**
+- Add an `## Impact Score` H2 section in the description body. The breakdown lives in `customfield_10681`, not the body. (This corrects the earlier rule that said "body H2".)
 - Call `addCommentToJiraIssue` with the breakdown — no post-create comment.
-- Populate `customfield_10681` (Impact Score details) — leave blank. Real TSE practice puts the breakdown in the description body, not in this metadata field.
 
 Why integer-only: the field is consumed by triage tooling that treats it as a whole number. Per the "if in doubt, lean lower" guidance, prefer floor on ties (e.g., `56.5 → 56`).
+
+### ADF skeleton for `customfield_10681`
+
+```jsonc
+{
+  "type": "doc", "version": 1,
+  "content": [
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "Final Score: <N> (<BAND>)", "marks": [{"type":"strong"}] },
+      { "type": "text", "text": " — Base <B> × (1 + <CloudOps_mult> + <Customer_mult>)." }
+    ]},
+    { "type": "bulletList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
+        { "type": "text", "text": "Impact & Severity: <X>/38", "marks": [{"type":"strong"}] },
+        { "type": "text", "text": " — <reasoning>" }
+      ]}]},
+      // ... one listItem per component (Customer ARR, SLA Breach, Frequency, Workaround, RCA AI)
+    ]},
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "Multipliers: CloudOps <m>%, Customer <m>%. Sheet link: " },
+      { "type": "text", "text": "Impact Score Sheet",
+        "marks": [{"type":"link","attrs":{"href":"https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0"}}]}
+    ]},
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "Score is a recommendation pending team leader confirmation." }
+    ]}
+  ]
+}
+```
+
+See also: [`zendesk-bug-mapping.md`](./zendesk-bug-mapping.md) → "Description body vs custom-field sections" for the complete field-destination map.
