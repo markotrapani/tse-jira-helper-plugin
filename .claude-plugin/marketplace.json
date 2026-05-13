@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Redis Technical Support Engineer tooling for Claude Code. Umbrella marketplace — current plugins: tse-jira (Bug/RCA/score). Future plugins: RCA tooling, support-package analyzers, Grafana helpers, etc.",
-    "version": "0.12.0"
+    "version": "0.12.1"
   },
   "plugins": [
     {
       "name": "tse-jira",
       "source": "./plugins/tse-jira",
       "description": "Create Redis Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, and compute impact scores. Four slash commands: /tse-jira:new (interactive router), /tse-jira:bug, /tse-jira:rca, /tse-jira:score — each command falls back to interactive mode when invoked without args. Dry-run by default. Multi-project, uses claude.ai Atlassian MCP. Grounded in Redis CS Support team Confluence standards + canonical Jira examples.",
-      "version": "0.12.0",
+      "version": "0.12.1",
       "category": "support",
       "tags": ["jira", "redis", "tse", "zendesk", "rca", "atlassian", "interactive"]
     }

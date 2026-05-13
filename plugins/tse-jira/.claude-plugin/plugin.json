@@ -1,6 +1,6 @@
 {
   "name": "tse-jira",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "TSE-focused Jira ticket creation for Redis Technical Support Engineers. Four slash commands — /tse-jira:new (interactive router), /tse-jira:bug, /tse-jira:rca, /tse-jira:score. Each command falls back to interactive mode when invoked without args; validates inputs as you go. Dry-run by default with HTML + markdown preview. Multi-project (RED/MOD/DOC/RDSC/RCA), sprint-blank, uses the claude.ai Atlassian MCP.",
   "author": {
     "name": "Marko Trapani",
