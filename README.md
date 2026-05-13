@@ -4,20 +4,29 @@ Umbrella **Claude Code marketplace** for Redis Technical Support Engineers. Curr
 
 ## Plugins in this marketplace
 
-### `tse-jira` (v0.11.0)
+### `tse-jira` (v0.12.1)
 
 Create Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras by cloning the canonical RCA-41 template, and compute the 8-130 impact score — all through the claude.ai Atlassian MCP, no API tokens required.
 
-**Three slash commands:**
+**Four slash commands:**
+- `/tse-jira:new` — interactive router; asks Bug / RCA / Impact Score, then walks you through the inputs (recommended starting point)
 - `/tse-jira:bug <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] [--publish]`
 - `/tse-jira:rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] [--publish]`
 - `/tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]`
+
+**Interactive mode (v0.12+)** — each command also falls back to interactive prompts when invoked without args (or with ambiguous args). Validates inputs as you go: PDF paths via `ls`, Jira keys regex-checked then verified via `getJiraIssue` (read-only). Re-prompts on bad input rather than coasting forward.
 
 **Grounded in Redis Customer Support team standards** ([Confluence](https://redislabs.atlassian.net/wiki/spaces/CS/pages/3785981958)) and verified against the live `redislabs.atlassian.net` schema. Not based on guesses.
 
 **Spiritual successor to [`jira-helper`](https://github.com/markotrapani/jira-helper)** — same impact scoring model and conceptual field mapping, but Claude actually creates tickets via MCP instead of generating markdown for copy/paste.
 
-[→ Full plugin docs](./plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md)
+[→ Full plugin docs](./plugins/tse-jira/skills/tse-jira-ticket-creation/SKILL.md) · [→ Roadmap](./plugins/tse-jira/ROADMAP.md)
+
+#### What's new
+
+- **v0.12.1** — added `ROADMAP.md` with performance / skill-encoded rules / discovery / UX / publishing themes. Docs-only.
+- **v0.12.0** — interactive mode + `/tse-jira:new` router. RCA workflow now requires ≥1 Zendesk PDF in addition to ≥1 Jira (cluster-incident-shape exception preserved). Folds in real-TSE-practice corrections from the first production filing: integer Impact Score field, content goes in dedicated custom-field sections (Workaround / Impact Score details / Action Items), TSE-humble framing for code analysis ("Possible Root Cause — please verify" + "Asks for R&D"), compact title form `Topic [Customer]: symptom`, AI-assisted analysis acknowledged in the description, no fabricated content.
+- **v0.11.0** — plugin renamed `tse-jira-ticket-creation` → `tse-jira`; commands split into 3 namespaced entries.
 
 ## Installation
 
@@ -95,22 +104,37 @@ mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
 ```
 Expected to return a resource with URL `https://redislabs.atlassian.net` and id `06f73ca7-8f2c-4392-b40a-08288e9d0ba3`.
 
-## Usage — three slash commands
+## Usage — four slash commands
 
 ### Quick reference
 
 ```
-# Default: dry-run (writes .md + .html preview, no MCP writes)
+# Interactive router (v0.12+): asks bug/rca/score, then walks you through inputs
+/tse-jira:new
+
+# Direct CLI form — default dry-run (writes .md + .html preview, no MCP writes)
 /tse-jira:bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+]
-/tse-jira:rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
+/tse-jira:rca   <zendesk-pdfs>+  -- <jira-pdfs-or-keys>+
 /tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]
 
-# Publish: actually fires MCP writes (still asks for confirmation)
+# Publish: actually fires MCP writes (harness still asks for confirmation per permissions.ask)
 /tse-jira:bug   <zendesk-pdf>+ [-- <jira-pdfs-or-keys>+] --publish
-/tse-jira:rca   <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+] --publish
+/tse-jira:rca   <zendesk-pdfs>+  -- <jira-pdfs-or-keys>+ --publish
 ```
 
-The first set of args is **required** (one or more). The `--` separator marks the start of **optional** supporting inputs. `--publish` enables publish mode (default is dry-run). `score` is inherently read-only — no `--publish` flag.
+The first set of args is **required** (one or more). The `--` separator marks the start of additional inputs (related Jiras for bug, Jiras-feeding-RCA for rca, supplemental Zendesk for score). `--publish` enables publish mode (default is dry-run). `score` is inherently read-only — no `--publish` flag.
+
+**Each command also drops into interactive mode** if invoked without args or with insufficient inputs. The skill validates as it goes — PDF paths via `ls`, Jira keys via `getJiraIssue` (read-only) — and re-prompts on bad input rather than coasting forward.
+
+### Workflow 0 — `/tse-jira:new` — interactive router
+
+The simplest starting point. Three questions:
+
+1. **Bug / RCA / Impact Score?** Picks the workflow.
+2. **Where are the inputs?** Asks for PDF path(s), related Jiras, then any workflow-specific batched questions (severity for bug; customer / date / clusters for rca).
+3. **Codebase investigation?** (Bug only) — asks before walking the Redis-owned source tree to ground "Possible Root Cause" / "Related Code Paths" in real file:line refs.
+
+Then writes the dry-run preview and stops. Same publish flow as the direct commands.
 
 ### Workflow 1 — `/tse-jira:bug` — Bug Jira from Zendesk
 
@@ -204,9 +228,10 @@ redis-tse-tools/                              ← marketplace repo
 ├── .claude-plugin/
 │   └── marketplace.json                      ← lists all plugins
 ├── plugins/
-│   └── tse-jira/                             ← plugin (v0.11.0)
+│   └── tse-jira/                             ← plugin (v0.12.1)
 │       ├── .claude-plugin/
 │       │   └── plugin.json
+│       ├── ROADMAP.md                         ← forward-looking plan
 │       ├── skills/
 │       │   └── tse-jira-ticket-creation/
 │       │       ├── SKILL.md
@@ -218,6 +243,7 @@ redis-tse-tools/                              ← marketplace repo
 │       │           ├── preview-template.html  # Jira-mimicking HTML preview
 │       │           └── canonical-jiras/       # 12 canonical examples for anchoring
 │       └── commands/
+│           ├── new.md                         # /tse-jira:new (interactive router, v0.12+)
 │           ├── bug.md                         # /tse-jira:bug
 │           ├── rca.md                         # /tse-jira:rca
 │           └── score.md                       # /tse-jira:score
