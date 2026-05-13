@@ -1,6 +1,6 @@
 {
   "name": "tse-jira",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "TSE-focused Jira ticket creation for Redis Technical Support Engineers. Four slash commands — /tse-jira:new (interactive router), /tse-jira:bug, /tse-jira:rca, /tse-jira:score. Description body holds narrative only; metadata content (Workaround, Impact Score details, Action Items) lives in dedicated Jira custom fields. Auto-infers related Jiras from Zendesk PDF text + Glean Search. HTML preview rendered via template-substitution script for fast generation. Each command falls back to interactive mode when invoked without args; validates inputs as you go. Dry-run by default with HTML + markdown preview. Multi-project (RED/MOD/DOC/RDSC/RCA), sprint-blank, uses the claude.ai Atlassian MCP.",
   "author": {
     "name": "Marko Trapani",
