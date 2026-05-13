@@ -135,9 +135,17 @@ Behavioral rules that have been captured as session memory but are not yet hard-
   - MCP's `createJiraIssue` doesn't accept attachments — we tell the TSE to manually attach screenshots / Zendesk PDF / TF zip in the browser.
   - If the MCP ever exposes an attachment endpoint, automate that step. Until then: leave as a post-publish manual checklist item.
 
+- [ ] **Google Sheets MCP integration for Impact Score Sheet** (proposed 2026-05-13, post-RED-196844 filing)
+  - Currently the TSE manually adds a row to the [Impact Score Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0) for each filed Jira, then screenshots the row and pastes into `customfield_10681` (Impact Score details).
+  - **Implementation paths:**
+    1. **Sheets MCP write** — if a Google Sheets MCP server is available in claude.ai (or installed locally), the plugin appends a row programmatically — Jira key + 6 component scores + multipliers + final + reasoning columns. TSE doesn't touch the Sheet. Cleanest path.
+    2. **Sheets API direct** — helper script that uses Google's OAuth + Sheets API. More setup (service account credentials, scope grants). Fallback.
+  - After the row is in the Sheet, the screenshot step is either: (a) replaced by the next ROADMAP item (auto-render via headless browser), or (b) optional — the textual ADF breakdown in `customfield_10681` plus a deep-link to the Sheet row is arguably sufficient for R&D triage.
+  - **Out of scope for v0.14.x.** Strong candidate for v0.15+.
+
 - [ ] **Auto-paste Impact Score Sheet screenshot**
-  - Today: TSE manually pastes a screenshot of the [Impact Score Google Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0) row into the Impact Score body section after creation.
-  - Future: skill could programmatically render the breakdown as an image (via headless browser + a Sheets URL with row filter applied) and add it as a Jira attachment.
+  - Today: TSE manually pastes a screenshot of the [Impact Score Google Sheet](https://docs.google.com/spreadsheets/d/13HQaZGXtsRi0hWxqU0oQXTmQw1LfnnrkBGl3Y5-c1Sk/edit?gid=0#gid=0) row into the `customfield_10681` (Impact Score details) field after creation.
+  - Future: skill could programmatically render the breakdown row as an image (via headless browser + a Sheets URL with row filter applied) and add it to the Jira. Dependent on the Sheets MCP item above being implemented first.
 
 ## Documentation
 
