@@ -39,7 +39,7 @@ Shortcut for the `tse-jira-ticket-creation` skill — **Workflow D (Doc Bug fili
 | `--description-file <path>` | Markdown file with the description body. If omitted, interactive mode asks for the description text inline. |
 | `--from-slack <url>` | Slack permalink. Appended to the description as `_Issue created in Slack from a [message](URL)._` (matches DOC-6659 convention). |
 | `--related <KEY>` | Related Jira key (e.g., `RED-176559`). Repeatable. Linked via `Relates` (id 10003) on publish. |
-| `--assignee <email>` | Override the default. For FF docs the conventional assignee is `kaitlyn.michael@redis.com` — the skill will suggest this when the title contains "FF" or "Feature Form". |
+| `--assignee <email>` | Optional. **Explicit only — the skill does NOT auto-suggest assignees** (assignment is the docs team's call during triage). If you have a specific person who should own this ticket, pass their email and the skill will resolve to their accountId via `lookupJiraAccountId`. If not provided, the ticket is created Unassigned. |
 | `--type bug\|task` | Issue type. Defaults to `bug` (id `10074`). Use `task` (id `10023`) for "update docs to clarify X" style work (DOC-6659 was a Task). |
 | `--publish` | Actually file the ticket via MCP. Without this, dry-run only. |
 
@@ -54,7 +54,7 @@ Shortcut for the `tse-jira-ticket-creation` skill — **Workflow D (Doc Bug fili
 What it does:
 1. Reads description-file (or prompts for description text in interactive mode)
 2. Verifies related Jira keys (regex + `getJiraIssue` lookup) if provided
-3. Auto-detects suggested assignee from title content (FF → Kaitlyn Michael, etc.)
+3. Resolves explicit `--assignee` email via `lookupJiraAccountId` if provided; otherwise Unassigned. **No auto-suggestion** — assignment is the docs team's triage decision.
 4. **Writes BOTH a markdown preview AND a Jira-styled HTML preview** to `~/tse-jira-previews/DOC-doc-<ISO timestamp>.{md,html}`
 5. **Auto-opens the HTML preview in your default browser** (`open <file.html>` on macOS)
 6. Reports the paths. Stops. **No MCP writes happen.**
@@ -88,8 +88,8 @@ Invokes the `tse-jira-ticket-creation` skill, **Workflow D**:
    - Description body (from file or interactive prompt)
    - Slack reference URL (optional)
    - Related Jira keys (optional, verified)
-   - Assignee suggestion (auto-detected from product prefix in title)
-   - Issue type (bug default; task if title is imperative "Update docs to..." style)
+   - Assignee (optional, **explicit user-provided only** — no auto-suggestion)
+   - Issue type (bug default; task if title is imperative "Update docs to..." style — auto-suggested with user confirmation)
 
 2. Constructs the Jira payload using the **minimal DOC schema** per [`references/jira-schema.md` → DOC section](../skills/tse-jira-ticket-creation/references/jira-schema.md):
    - `project: {id: "10037"}`

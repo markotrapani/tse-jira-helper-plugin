@@ -6,6 +6,11 @@ Last updated: 2026-05-27 (during the v0.15.0 FeatureForm Support audit session �
 
 ## Recently shipped
 
+### v0.15.1 — assignee-auto-suggest removal + DOC HTML template item (2026-05-27)
+
+- [x] **Remove auto-suggest-assignee logic from `/tse-jira:doc`.** v0.15.0 auto-suggested Kaitlyn Michael for FF-prefixed titles. **This was the wrong design** — feedback from Marko during the first real test: "we shouldn't ever automatically set assignees. We should let Jira / the teams handle that." Updated `commands/doc.md` + SKILL.md Workflow D to make `--assignee <email>` explicit-user-provided only, with no auto-detection. Default is Unassigned. Captured as a general principle for future workflows: the skill should never infer an assignee.
+- [ ] **Add a DOC-shaped HTML preview template.** v0.15.0 shipped with only the existing RED-bug-shaped `preview-template.html`. When `/tse-jira:doc` was first tested, the skill had to bypass `render-html-preview.py` and generate the HTML manually because the RED template has Severity/Component/Environment fields that don't apply to DOC. A `references/preview-template-doc.html` variant (or a project-shape switch in the existing template) would close this gap. Tracking issue: title-only for now; pick this up the next time DOC bugs are filed.
+
 ### v0.15.0 — `/tse-jira:doc` command (2026-05-27)
 
 - [x] **Add `/tse-jira:doc` for DOC-project filings from internal findings.** The plugin had DOC schema support documented in `references/jira-schema.md` but no command that fit non-Zendesk-derived input. Added during the FeatureForm Support audit when ~15 doc bugs surfaced from internal observations (Support audit, Slack discussions) that didn't fit `/tse-jira:bug`'s Zendesk-PDF requirement.

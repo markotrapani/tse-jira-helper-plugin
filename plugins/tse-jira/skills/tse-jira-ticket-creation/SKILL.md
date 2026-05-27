@@ -98,10 +98,7 @@ The plugin runs in **interactive mode** whenever the user invokes it without suf
 3. Ask: *"Slack permalink? Optional — appended as `_Issue created in Slack from a [message](URL)._` at the end of the description."* — validate URL shape if given; allow `none`.
 4. Ask: *"Related Jiras? Keys (e.g., `RED-176559`) or `none`."* — for each key, regex-check `^[A-Z]+-\d+$` and verify via `getJiraIssue`.
 5. Suggest issue type: parse the title for "Update", "Document", "Clarify" → suggest `Task` (id `10023`); otherwise default `Bug` (id `10074`). Confirm with `AskUserQuestion`.
-6. Suggest assignee from product prefix:
-   - Title contains `FF` / `Feature Form` → suggest `kaitlyn.michael@redis.com`
-   - Otherwise → leave unassigned (default)
-   Confirm or override with email lookup.
+6. Assignee: **explicit user-provided only.** Ask: *"Anyone specific should own this, or leave Unassigned? Assignment is the docs team's triage call — defaulting to Unassigned unless you have a reason to set someone."* If user provides an email, resolve via `lookupJiraAccountId`. Otherwise omit the assignee field entirely. **Do NOT auto-suggest based on title content.**
 7. Confirm DOC project (only target — DOC project, id `10037`).
 8. Draft preview. Show paths. Stop.
 
@@ -614,7 +611,7 @@ For documentation gaps surfaced from **internal sources** — Support audits, Sl
   - Description body (markdown file or inline text)
   - Slack permalink (rendered as `_Issue created in Slack from a [message](URL)._` at the end of description, matching DOC-6659 convention)
   - Related Jira keys (linked via `Relates` id `10003` on publish)
-  - Assignee (auto-suggested from product prefix; for FF docs the conventional assignee is `kaitlyn.michael@redis.com`)
+  - Assignee (optional, **explicit user-provided only** — no auto-suggestion based on title prefix or anything else; assignment is the docs team's triage call)
   - Issue type: `Bug` (id `10074`, default) or `Task` (id `10023`, for "update docs to clarify X" style work)
 
 ### Steps
@@ -627,10 +624,7 @@ For documentation gaps surfaced from **internal sources** — Support audits, Sl
    - `--assignee <email>`
    - `--type bug|task`
 2. **Verify related Jira keys** via `getJiraIssue` (read-only). Drop any that 404.
-3. **Auto-suggest assignee** from title content:
-   - Contains "FF" or "Feature Form" → suggest Kaitlyn Michael (`kaitlyn.michael@redis.com`)
-   - Otherwise → leave unassigned
-   - Confirm with user; allow override
+3. **Assignee handling:** **NO auto-suggestion.** If `--assignee <email>` is explicitly provided, resolve via `lookupJiraAccountId` and include `assignee: {accountId: ...}` in the payload. If not provided, omit the assignee field entirely (defaults to Unassigned). Assignment is the docs team's triage decision — the skill must not make assumptions based on title prefixes or any other auto-detection signal.
 4. **Auto-suggest issue type** from title:
    - Starts with "Update docs", "Document", "Clarify", "Add docs for", "Remove" → suggest `Task` (id `10023`)
    - Otherwise → default `Bug` (id `10074`)
