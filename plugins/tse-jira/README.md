@@ -8,13 +8,14 @@ Claude Code plugin for filing Redis Bug / RCA Jiras from Zendesk PDFs, plus 8-13
 
 ## What it does
 
-Four slash commands:
+Five slash commands:
 
 | Command | Purpose |
 |---|---|
-| `/tse-jira:new` | Interactive router — asks Bug / RCA / Impact Score, then walks you through |
+| `/tse-jira:new` | Interactive router — asks Bug / RCA / Doc / Impact Score, then walks you through |
 | `/tse-jira:bug` | Bug Jira from one or more Zendesk PDFs |
 | `/tse-jira:rca` | Multi-cluster RCA by cloning the canonical RCA-41 template |
+| `/tse-jira:doc` | Documentation Jira (DOC project) sourced from internal findings — no Zendesk PDF required. ⭐ v0.15+ |
 | `/tse-jira:score` | Impact Score estimation (read-only) |
 
 Every Bug / RCA workflow defaults to dry-run — writes a local markdown + Jira-styled HTML preview first; you review in your browser, then say `publish this preview` to actually file. Each command also drops into interactive mode when invoked without args.

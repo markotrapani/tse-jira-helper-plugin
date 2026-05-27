@@ -1,5 +1,5 @@
 ---
-description: Interactive entry point — asks what kind of Jira to file (Bug / RCA / Impact Score), then walks you through the inputs. Use when you don't remember the specific subcommand or want guided prompts.
+description: Interactive entry point — asks what kind of Jira to file (Bug / RCA / Doc / Impact Score), then walks you through the inputs. Use when you don't remember the specific subcommand or want guided prompts.
 argument-hint: (no arguments — interactive flow)
 ---
 
@@ -9,14 +9,16 @@ Interactive entry point for the `tse-jira` plugin. Use this when you want guided
 
 ## What it does
 
-1. Asks **"What kind of Jira do you want to file?"** via `AskUserQuestion` — three options:
+1. Asks **"What kind of Jira do you want to file?"** via `AskUserQuestion` — four options:
    - **Bug Jira** (from Zendesk PDF + optional related Jiras)
    - **RCA Jira** (multi-cluster RCA from ≥1 Zendesk PDF + ≥1 related Jira)
+   - **Doc Jira** (DOC project — internal finding / Slack-derived / audit-derived; no Zendesk PDF required)
    - **Impact Score** (read-only — score one or more existing Jiras)
 
 2. Chains into the matching interactive flow:
    - Bug → asks for Zendesk PDF path/glob, sibling screenshots, related Jiras, severity, optional codebase investigation
    - RCA → asks for Zendesk PDF(s), related Jira(s), then batched RCA prerequisites (customer, date, clusters, start/end UTC, product, affected components, contributors)
+   - Doc → asks for title, description (text or file), optional Slack link, optional related Jiras, confirms issue type (Bug/Task) and assignee
    - Score → asks for Jira key(s) or PDF path(s), optional Zendesk context
 
 3. Validates each input as it's collected:
@@ -59,5 +61,5 @@ To publish: review the preview in your browser, then reply with something contai
 ## Related
 
 - **Skill:** [`../skills/tse-jira-ticket-creation/SKILL.md`](../skills/tse-jira-ticket-creation/SKILL.md) → "Interactive Mode" section
-- **Direct commands:** [`./bug.md`](./bug.md), [`./rca.md`](./rca.md), [`./score.md`](./score.md)
+- **Direct commands:** [`./bug.md`](./bug.md), [`./rca.md`](./rca.md), [`./doc.md`](./doc.md), [`./score.md`](./score.md)
 - **Harness safety:** [`SECURITY.md`](../../../SECURITY.md)

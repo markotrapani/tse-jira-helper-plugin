@@ -15,12 +15,13 @@ A Redis Technical Support Engineer workflow for creating Jira tickets in `redisl
 4. [**Internal R&D RCA Process**](https://redislabs.atlassian.net/wiki/spaces/DevOps/pages/4571660292) — overall RCA process and KPIs
 5. [**RCA-41**](https://redislabs.atlassian.net/browse/RCA-41) — canonical RCA template ticket
 
-## Three Workflows
+## Four Workflows
 
 | Workflow | Required Input | Optional Input | Result |
 |---|---|---|---|
 | **Bug Jira** (`/tse-jira:bug`) | ≥1 Zendesk PDF (multiple OK) | Related Jira PDFs (any number — linked via `Relates`) | Bug ticket in RED / MOD / DOC / RDSC with TSE-judged severity, default priority, impact score, mapped fields. Impact-score breakdown posted as a comment. For Azure: post-save RCA-template field populated. |
 | **RCA Jira** (`/tse-jira:rca`) | ≥1 Jira PDF (multiple OK) | Zendesk PDFs (any number) | RCA ticket created by cloning RCA-41 defaults: title `<Customer> - RCA <mm/dd/yyyy>`, Initial Root Cause from Jira PDF content, action items pre-filled with placeholders, all related bugs linked via `Relates`. Status starts at `Data Collection`. |
+| **Doc Jira** (`/tse-jira:doc`) — ⭐ v0.15+ | Title (short imperative summary) | Description body (file or inline text), Slack permalink, related Jiras, issue type (Bug or Task), assignee | DOC-project ticket with minimal field set (no Severity / Component / Environment / Product / etc. per DOC schema). For documentation gaps surfaced by Support audits, Slack discussions, or internal observations — **no Zendesk PDF required**. |
 | **Impact Score** (`/tse-jira:score`) | ≥1 Jira (PDF or live key) (multiple OK) | Zendesk PDFs (any number, supplement context) | 8-130 score + 6-component breakdown with reasoning. **No ticket creation.** Score is a recommendation; team leader confirms before applying. |
 
 This skill is the spiritual successor to `~/Downloads/marko-projects/jira-helper` — same impact scoring model and conceptual field mapping, but actually creates tickets via MCP instead of generating markdown.
@@ -62,8 +63,8 @@ Read the matching reference file as the workflow demands — don't load all upfr
 
 The plugin runs in **interactive mode** whenever the user invokes it without sufficient information. Three trigger conditions:
 
-1. **Top-level router** — `/tse-jira:new` is the entry point for "I want to file a Jira but I don't remember which command." Use `AskUserQuestion` with three options (`Bug Jira` / `RCA Jira` / `Impact Score`), then chain into the matching interactive flow.
-2. **Command with no args** — `/tse-jira:bug`, `/tse-jira:rca`, `/tse-jira:score` invoked without arguments → fall back to the flow's interactive script below.
+1. **Top-level router** — `/tse-jira:new` is the entry point for "I want to file a Jira but I don't remember which command." Use `AskUserQuestion` with four options (`Bug Jira` / `RCA Jira` / `Doc Jira` / `Impact Score`), then chain into the matching interactive flow.
+2. **Command with no args** — `/tse-jira:bug`, `/tse-jira:rca`, `/tse-jira:doc`, `/tse-jira:score` invoked without arguments → fall back to the flow's interactive script below.
 3. **Command with partial / ambiguous args** — glob matched 0 files, project auto-detection has multiple candidates, Jira key looks malformed, etc. Pause and ask instead of guessing.
 
 ### Per-flow interactive scripts
@@ -90,6 +91,28 @@ The plugin runs in **interactive mode** whenever the user invokes it without suf
    - Contributors — free-text
 4. Detect cluster-incident shape (automation-initiated, no customer ZD). If detected, skip step 1's "Zendesk required" — see [[feedback-rca-zendesk-required]].
 5. Draft preview, show paths, stop.
+
+**doc flow:** ⭐ v0.15+
+1. Ask: *"Title? Short, imperative — conventionally `FF: ...`, `RS: ...`, etc."* — validate non-empty; warn if it doesn't look like an imperative.
+2. Ask: *"Description? Paste markdown text inline, or give me a file path."* — accept either; if file path, validate with `test -f`.
+3. Ask: *"Slack permalink? Optional — appended as `_Issue created in Slack from a [message](URL)._` at the end of the description."* — validate URL shape if given; allow `none`.
+4. Ask: *"Related Jiras? Keys (e.g., `RED-176559`) or `none`."* — for each key, regex-check `^[A-Z]+-\d+$` and verify via `getJiraIssue`.
+5. Suggest issue type: parse the title for "Update", "Document", "Clarify" → suggest `Task` (id `10023`); otherwise default `Bug` (id `10074`). Confirm with `AskUserQuestion`.
+6. Suggest assignee from product prefix:
+   - Title contains `FF` / `Feature Form` → suggest `kaitlyn.michael@redis.com`
+   - Otherwise → leave unassigned (default)
+   Confirm or override with email lookup.
+7. Confirm DOC project (only target — DOC project, id `10037`).
+8. Draft preview. Show paths. Stop.
+
+**Field set for Doc Jira** (per [`references/jira-schema.md` → DOC section](references/jira-schema.md)):
+- ✅ project: `{id: "10037"}`
+- ✅ issuetype: `{id: "10074"}` (Bug) or `{id: "10023"}` (Task)
+- ✅ summary: from title
+- ✅ description: ADF doc with body + optional Slack reference appended
+- ✅ assignee (if resolved)
+- ❌ DO NOT set: Severity, Component, Environment, Product, Seen by Customer/s, Found By, Issue source, RCA template, Workaround, Impact Score, Action Items, Data loss / Data unavailable / Downtime
+- If uncertain about available fields, call `getJiraIssueTypeMetaWithFields` with `projectIdOrKey=DOC`, `issueTypeId=10074` (or `10023`) and filter to the actually-allowed set
 
 **score flow:**
 1. Ask: *"Jira key(s) or PDF path(s) you want scored? Comma-separated."* — validate each.
@@ -580,6 +603,74 @@ The skill will not call any `mcp__claude_ai_Atlassian__create*` / `edit*` / `tra
 
 ---
 
+## Workflow D — Doc Jira (Internal Finding) ⭐ v0.15+
+
+For documentation gaps surfaced from **internal sources** — Support audits, Slack discussions, field observations, internal testing of shipped features — where the Bug workflow's Zendesk-PDF input doesn't apply. Targets the DOC project specifically.
+
+### Input Contract
+
+- **Required:** Title — short imperative summary, conventionally prefixed with the affected product (e.g., `"FF: <action>"`, `"RS: <action>"`).
+- **Optional:**
+  - Description body (markdown file or inline text)
+  - Slack permalink (rendered as `_Issue created in Slack from a [message](URL)._` at the end of description, matching DOC-6659 convention)
+  - Related Jira keys (linked via `Relates` id `10003` on publish)
+  - Assignee (auto-suggested from product prefix; for FF docs the conventional assignee is `kaitlyn.michael@redis.com`)
+  - Issue type: `Bug` (id `10074`, default) or `Task` (id `10023`, for "update docs to clarify X" style work)
+
+### Steps
+
+1. **Collect inputs** — interactive prompts per the **doc flow** above, or accept CLI args:
+   - `<title>` (positional or `--title`)
+   - `--description-file <path>` or inline interactive paste
+   - `--from-slack <url>`
+   - `--related <KEY>` (repeatable)
+   - `--assignee <email>`
+   - `--type bug|task`
+2. **Verify related Jira keys** via `getJiraIssue` (read-only). Drop any that 404.
+3. **Auto-suggest assignee** from title content:
+   - Contains "FF" or "Feature Form" → suggest Kaitlyn Michael (`kaitlyn.michael@redis.com`)
+   - Otherwise → leave unassigned
+   - Confirm with user; allow override
+4. **Auto-suggest issue type** from title:
+   - Starts with "Update docs", "Document", "Clarify", "Add docs for", "Remove" → suggest `Task` (id `10023`)
+   - Otherwise → default `Bug` (id `10074`)
+   - Confirm with user
+5. **Construct payload** — minimal DOC field set per [`references/jira-schema.md` → DOC section](references/jira-schema.md):
+   ```jsonc
+   {
+     "project": { "id": "10037" },
+     "issuetype": { "id": "10074" },  // or "10023" for Task
+     "summary": "<title>",
+     "description": { /* ADF doc */ },
+     "assignee": { "accountId": "<resolved>" }  // omit if unassigned
+   }
+   ```
+   **Do NOT include** RED-style customfields. The DOC schema doesn't have Severity, Component, Environment, Product, Seen by Customer/s, Found By, Issue source, RCA template, Workaround, Impact Score, Action Items, Data loss / Data unavailable / Downtime. If unsure, call `getJiraIssueTypeMetaWithFields` with `projectIdOrKey=DOC`, `issueTypeId=10074` and filter to the allowed field set.
+6. **Construct ADF description** from the description body:
+   - Plain markdown body → convert to ADF paragraphs
+   - If `--from-slack <url>` given, append a final paragraph: `_Issue created in Slack from a [message](URL)._` (italic, matches DOC-6659)
+7. **Write preview files** at `~/tse-jira-previews/DOC-doc-<timestamp>.{md,html}` — done in dry-run.
+8. **On `--publish` or "publish this" follow-up**: ask for explicit final yes, then:
+   - `createJiraIssue` with the constructed payload
+   - For each `--related` key: `createIssueLink` with type `Relates` (id `10003`)
+   - Append actual API responses to the preview file
+
+### When NOT to use Workflow D
+
+Use Workflow A (`/tse-jira:bug`) instead when:
+- A Zendesk ticket exists (the customer reported it)
+- Customer impact assessment / impact score matters
+- The issue is in product code, not docs (file in RED/MOD even if docs are also wrong)
+
+Use Workflow C (`/tse-jira:score`) when you're triaging an *existing* DOC ticket's priority — not creating a new one.
+
+### Canonical examples
+
+- **DOC-6659** (Task) — "FF: Update docs regarding Docker image accessibility" — short, action-oriented, ends with `_Issue created in Slack from a [message](URL)._` (the v0.15 doc flow defaults match this pattern).
+- **DOC-6506** (Bug) — "Go-redis Smart Client Handoff lists default EndpointType as EndpointTypeExternalIP instead of EndpointTypeAuto" — descriptive bug-style title, body has the quoted user observation + embedded screenshot.
+
+---
+
 ## Multi-Project Handling
 
 The skill supports filing into any project the user has access to. Rules:
@@ -650,6 +741,7 @@ For multi-line content, add more paragraph blocks. For tables/lists, use ADF tab
 
 - `/tse-jira:bug <zendesk-pdfs>+ [-- <jira-pdfs>+]` — Bug workflow shortcut
 - `/tse-jira:rca <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — RCA workflow shortcut
+- `/tse-jira:doc <title> [--description-file <path>] [--from-slack <url>] [--related <key>+]` — Doc workflow shortcut (DOC project, no Zendesk required) ⭐ v0.15+
 - `/tse-jira:score <jira-pdfs-or-keys>+ [-- <zendesk-pdfs>+]` — Impact score only
 - ECC `jira-integration` skill — complementary; read/comment/transition/search on existing tickets
 - `redislabsdev/agent-skills/ticket-to-pr` — converts a Jira into a PR (after creation)

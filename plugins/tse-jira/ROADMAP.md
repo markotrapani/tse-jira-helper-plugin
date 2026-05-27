@@ -2,7 +2,20 @@
 
 Forward-looking direction for the plugin. Captures deferred items, known performance issues, and ideas surfaced during real-world use. Items are loosely grouped by theme; check items off when shipped.
 
-Last updated: 2026-05-13 (during the v0.12.0 Aetna production-filing session).
+Last updated: 2026-05-27 (during the v0.15.0 FeatureForm Support audit session — added `/tse-jira:doc`).
+
+## Recently shipped
+
+### v0.15.0 — `/tse-jira:doc` command (2026-05-27)
+
+- [x] **Add `/tse-jira:doc` for DOC-project filings from internal findings.** The plugin had DOC schema support documented in `references/jira-schema.md` but no command that fit non-Zendesk-derived input. Added during the FeatureForm Support audit when ~15 doc bugs surfaced from internal observations (Support audit, Slack discussions) that didn't fit `/tse-jira:bug`'s Zendesk-PDF requirement.
+  - Targets DOC project (id `10037`) with minimal field set per the existing schema doc
+  - Supports both Bug (`10074`) and Task (`10023`) issue types — auto-detects from title
+  - Renders `_Issue created in Slack from a [message](URL)._` footer matching DOC-6659 convention
+  - Auto-suggests Kaitlyn Michael as assignee for FF-prefixed titles
+  - Same dry-run / publish safety model as `/bug` and `/rca`
+  - Updated `/new` interactive router to add Doc as a 4th option
+  - Updated SKILL.md with full Workflow D specification
 
 ## Performance
 
