@@ -35,7 +35,8 @@ from pathlib import Path
 
 # Scalar placeholders that get a direct string substitution.
 SCALAR_PLACEHOLDERS = {
-    "TICKET_KEY_OR_PREVIEW", "SUMMARY", "TYPE", "STATUS", "PROJECT", "PROJECT_NAME",
+    "TICKET_KEY_OR_PREVIEW", "SUMMARY", "SUMMARY_FIRST_60_CHARS",
+    "TYPE", "STATUS", "PROJECT", "PROJECT_NAME",
     "CANONICAL_ANCHOR", "ISO_TIMESTAMP", "SKILL_VERSION",
     "PRIORITY", "SEVERITY", "REPORTER", "ASSIGNEE", "SPRINT",
     "COMPONENT", "ENVIRONMENT", "PRODUCT", "REPORTED_VERSION",
@@ -100,16 +101,24 @@ def expand_loops(template: str, fields: dict) -> str:
     if items:
         rendered = "\n        ".join(items)
         output = output.replace("<li>{CHECK_ITEM}</li>", rendered)
+    else:
+        # Empty: replace the example so the placeholder doesn't survive.
+        output = output.replace(
+            "<li>{CHECK_ITEM}</li>",
+            '<li class="muted">(no pre-flight checks recorded)</li>',
+        )
 
     # ISSUE LINKS — pattern with LINK_TYPE / LINKED_KEY / LINKED_SUMMARY
+    example_link_block = (
+        '      <div class="issue-link">\n'
+        '        <span class="link-type-badge">{LINK_TYPE}</span>\n'
+        '        <span>→</span>\n'
+        '        <a href="https://redislabs.atlassian.net/browse/{LINKED_KEY}">{LINKED_KEY}</a>\n'
+        '        <span style="color: var(--color-text-muted);">— {LINKED_SUMMARY}</span>\n'
+        '      </div>'
+    )
     items = loops.get("issue_links", [])
     if items:
-        link_block_pattern = re.compile(
-            r'      <!-- Repeat per link: -->\s*\n'
-            r'(.*?)</div>\s*\n\s*</div>\s*\n\s*<h2>Pre-flight',
-            re.DOTALL,
-        )
-        # Build the rendered links HTML
         link_html_lines = []
         for link in items:
             link_html = (
@@ -122,16 +131,13 @@ def expand_loops(template: str, fields: dict) -> str:
             )
             link_html_lines.append(link_html)
         rendered = "\n".join(link_html_lines)
-        # Simpler approach: replace the example block directly
-        example_block = (
-            '      <div class="issue-link">\n'
-            '        <span class="link-type-badge">{LINK_TYPE}</span>\n'
-            '        <span>→</span>\n'
-            '        <a href="https://redislabs.atlassian.net/browse/{LINKED_KEY}">{LINKED_KEY}</a>\n'
-            '        <span style="color: var(--color-text-muted);">— {LINKED_SUMMARY}</span>\n'
-            '      </div>'
+        output = output.replace(example_link_block, rendered)
+    else:
+        # Empty: replace the example block with a muted "none" notice
+        output = output.replace(
+            example_link_block,
+            '      <p class="muted" style="margin: 0;">No related Jiras to link.</p>',
         )
-        output = output.replace(example_block, rendered)
 
     # LABELS — single <span class="label-pill">{LABEL}</span>
     items = loops.get("labels", [])
@@ -140,6 +146,11 @@ def expand_loops(template: str, fields: dict) -> str:
             f'<span class="label-pill">{html.escape(lbl)}</span>' for lbl in items
         )
         output = output.replace('<span class="label-pill">{LABEL}</span>', rendered)
+    else:
+        output = output.replace(
+            '<span class="label-pill">{LABEL}</span>',
+            '<span class="muted">No labels.</span>',
+        )
 
     # SCREENSHOTS_TO_ATTACH — single <li><code>{SCREENSHOT_FILENAME}</code></li>
     items = loops.get("screenshots_to_attach", [])
@@ -149,6 +160,11 @@ def expand_loops(template: str, fields: dict) -> str:
         )
         output = output.replace(
             '<li><code>{SCREENSHOT_FILENAME}</code></li>', rendered
+        )
+    else:
+        output = output.replace(
+            '<li><code>{SCREENSHOT_FILENAME}</code></li>',
+            '<li class="muted">(no attachments)</li>',
         )
 
     return output

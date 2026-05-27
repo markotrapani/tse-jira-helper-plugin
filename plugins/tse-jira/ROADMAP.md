@@ -6,6 +6,12 @@ Last updated: 2026-05-27 (during the v0.15.0 FeatureForm Support audit session �
 
 ## Recently shipped
 
+### v0.15.2 — render-html-preview.py handles empty loop arrays (2026-05-27)
+
+- [x] **Patch `render-html-preview.py` to handle empty loop arrays.** First real `/tse-jira:doc` test showed that DOC tickets without related Jiras / labels / screenshots left the template's example placeholders (`{LINK_TYPE}`, `{LABEL}`, `{SCREENSHOT_FILENAME}`, etc.) in the output because the existing `if items:` branches only handled the non-empty case. Now empty arrays explicitly replace their example block with a muted "none" / "no labels" / "no attachments" notice. **Visual consistency with RED-bug previews restored** — DOC tickets now render through the same template + script.
+- [x] **Add `SUMMARY_FIRST_60_CHARS` + `N` to `SCALAR_PLACEHOLDERS`.** Both were referenced by `preview-template.html` (the latter inside the screenshot-attachment warning copy) but missing from the script's known-scalar set, generating "unknown scalar placeholder" warnings.
+- [x] **Closes the DOC-HTML-template gap from v0.15.1 ROADMAP.** Turned out we didn't need a separate DOC template — the existing template handles DOC fine once empty arrays are cleaned up. Just needed `(n/a — DOC schema)` strings for the RED-only sidebar fields. (Future polish: make those sidebar sections conditional so they hide entirely when not applicable, instead of showing as "(n/a)" — but that's purely cosmetic and not blocking.)
+
 ### v0.15.1 — assignee-auto-suggest removal + DOC HTML template item (2026-05-27)
 
 - [x] **Remove auto-suggest-assignee logic from `/tse-jira:doc`.** v0.15.0 auto-suggested Kaitlyn Michael for FF-prefixed titles. **This was the wrong design** — feedback from Marko during the first real test: "we shouldn't ever automatically set assignees. We should let Jira / the teams handle that." Updated `commands/doc.md` + SKILL.md Workflow D to make `--assignee <email>` explicit-user-provided only, with no auto-detection. Default is Unassigned. Captured as a general principle for future workflows: the skill should never infer an assignee.
