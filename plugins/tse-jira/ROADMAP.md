@@ -2,9 +2,33 @@
 
 Forward-looking direction for the plugin. Captures deferred items, known performance issues, and ideas surfaced during real-world use. Items are loosely grouped by theme; check items off when shipped.
 
-Last updated: 2026-06-01 (v0.15.5 — template-block conditional strips + strict-regex digit fix, surfaced during second A1 preview review).
+Last updated: 2026-06-01 (v0.15.6 — per-project sidebar sculpting for DOC and RDSC).
 
 ## Recently shipped
+
+### v0.15.6 — per-project sidebar sculpting (2026-06-01)
+
+The v0.15.5 conditional strips fixed individual visible bugs but the broader issue — the RED-Bug-shaped sidebar showing 8-10 `(n/a — DOC schema)` rows on DOC tickets — was still cosmetic noise. v0.15.6 picks Option 1 from the design discussion: per-project conditional stripping in the script, single canonical template.
+
+- [x] **Added `strip_sidebar_section()` and `strip_sidebar_row()` helpers** in `render-html-preview.py`. Multi-line regex with `re.DOTALL` matches the template's `<div class="sidebar-section">...</div>` and `<div class="field-row">...</div>` structures and replaces with explanatory HTML comments.
+- [x] **DOC project rules** in `strip_conditional_blocks`. Strips:
+  - Whole `Component & Environment` sidebar section (DOC has none of Component, Environment, Product, Reported Version)
+  - Whole `Workaround` sidebar section (DOC has no Workaround field)
+  - `Severity`, `Found By`, `Issue Source`, `Data Loss`, `Data Unavailable`, `Downtime` rows (none exist on DOC)
+  - `Seen by Customer/s`, `Zendesk ID/s`, `ICM ID/s` rows from Customer section
+  - Whole `Customer` section if `Affected Orgs` is also n/a (typical for audit-driven finding-based DOC tickets)
+- [x] **RDSC project rules.** RDSC Bug (10004) and RDI Customer Issue (14992) have different shapes:
+  - Both lack Workaround, Found By, Issue source — strip those
+  - RDSC Bug additionally lacks Severity, Data Loss/Unavail/Downtime — strip those
+  - RDI Customer Issue keeps Severity (the schema has it)
+- [x] **RED / MOD / RCA / unknown projects unchanged.** The full RED-shaped sidebar renders for those. MOD-specific tweaks (e.g., `Found by` lowercase field ID for the createJiraIssue payload) are handled by the skill at write-time, not the preview template.
+- [x] **Verified by re-rendering A1.** HTML drops 22,781 → 20,970 bytes (substantial cleanup, ~8% smaller). The 9 DOC-irrelevant strips visible in the rendered output as HTML comments. `--strict` mode still passes.
+
+Still pending (deferred to v0.16+):
+
+- [ ] **Active detect-and-warn for internal-source patterns in description body** (v0.15.4 rule documented but not yet enforced in code).
+- [ ] **MOD-specific sidebar tweaks** if they emerge from a real MOD filing — current MOD shape is close to RED, no obvious cleanup needed before the first MOD ticket actually goes through.
+- [ ] **RCA-shaped preview** — RCA tickets have a fundamentally different description body (Timeline tables, etc.). Will need its own treatment when the next RCA is filed.
 
 ### v0.15.5 — template-block conditional strips + strict-regex digit fix (2026-06-01)
 

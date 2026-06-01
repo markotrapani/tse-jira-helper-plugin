@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Redis Technical Support Engineer tooling for Claude Code. Umbrella marketplace — current plugins: tse-jira (Bug/RCA/Doc/score). Future plugins: support-package analyzers, Grafana helpers, etc.",
-    "version": "0.15.5"
+    "version": "0.15.6"
   },
   "plugins": [
     {
       "name": "tse-jira",
       "source": "./plugins/tse-jira",
       "description": "Create Redis Bug Jiras from Zendesk PDFs, multi-cluster RCA Jiras from Zendesk+Jira PDFs, DOC tickets from internal findings (Support audits / Slack / observations — no Zendesk PDF required), and compute impact scores. Five slash commands: /tse-jira:new (interactive router), /tse-jira:bug, /tse-jira:rca, /tse-jira:doc, /tse-jira:score — each command falls back to interactive mode when invoked without args. v0.15 adds: /tse-jira:doc for DOC-project filings from internal findings; render script now handles empty loop arrays + the attach-warning block conditionally (v0.15.2 still had spurious {N} leaks and over-rendered attach notices; v0.15.3 fixes). v0.14 added: Glean Search for semantically-related Jiras, template-substitution HTML preview (50% faster than write-from-scratch), expand-macro hint markers for long technical sections. Description body holds narrative only; metadata content lives in dedicated custom fields per real Jira UI layout. Dry-run by default.",
-      "version": "0.15.5",
+      "version": "0.15.6",
       "category": "support",
       "tags": ["jira", "redis", "tse", "zendesk", "rca", "docs", "atlassian", "interactive"]
     }

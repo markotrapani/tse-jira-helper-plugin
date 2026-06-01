@@ -265,7 +265,102 @@ def strip_conditional_blocks(template: str, fields: dict) -> str:
             '    <!-- RCA Template sidebar omitted: not applicable to this ticket (DOC schema, or non-Azure RED/MOD) -->',
         )
 
+    # v0.15.6: per-project sidebar sculpting. The default preview template
+    # is RED-Bug-shaped. For projects with smaller schemas (DOC, RDSC), some
+    # sidebar sections and rows reference fields that don't exist on the
+    # target project — they show as "(n/a — XXX schema)" filler. Strip the
+    # whole section or specific rows when the project's schema lacks the
+    # field. RED Bug invocations are unaffected (none of these strips fire).
+    project = (scalars.get("PROJECT") or "").upper()
+    ticket_type = (scalars.get("TYPE") or "").strip().lower()
+
+    if project == "DOC":
+        # DOC schema (verified 2026-06-01 via MCP): no Component, Environment,
+        # Product, Reported Version, Seen by Customer, Found By, Issue source,
+        # Workaround, Data loss/Unavail/Downtime, Zendesk ID. Strip those rows.
+        output = strip_sidebar_section(output, "Component &amp; Environment")
+        output = strip_sidebar_section(output, "Component & Environment")  # in case the template didn't HTML-escape
+        output = strip_sidebar_section(output, "Workaround")
+        output = strip_sidebar_row(output, "Found By")
+        output = strip_sidebar_row(output, "Issue Source")
+        output = strip_sidebar_row(output, "Data Loss")
+        output = strip_sidebar_row(output, "Data Unavailable")
+        output = strip_sidebar_row(output, "Downtime")
+        # Customer section: strip rows that don't apply on DOC
+        output = strip_sidebar_row(output, "Seen by Customer/s")
+        output = strip_sidebar_row(output, "Zendesk ID/s")
+        output = strip_sidebar_row(output, "ICM ID/s")
+        # If Affected Orgs is also n/a (typical for audit-driven finding-based
+        # DOC tickets), strip the entire Customer section. Otherwise keep it
+        # since the one remaining row (Affected Orgs) is still useful.
+        affected_orgs = scalars.get("AFFECTED_ORGS", "").strip()
+        if not affected_orgs or affected_orgs.lower().startswith("(n/a") or affected_orgs.lower().startswith("n/a"):
+            output = strip_sidebar_section(output, "Customer")
+        # Severity row is in the Details sidebar block — strip it for DOC
+        # since the schema doesn't have Severity. (Priority stays.)
+        output = strip_sidebar_row(output, "Severity")
+
+    elif project == "RDSC":
+        # RDSC Bug (10004) lacks Severity, Workaround, Found By, Issue source,
+        # Data loss/Unavail/Downtime per the verified schema. RDI Customer
+        # Issue (14992) lacks Workaround, Found By, Issue source — but HAS
+        # Severity (unlike RDSC Bug). Branch on type.
+        output = strip_sidebar_section(output, "Workaround")
+        output = strip_sidebar_row(output, "Found By")
+        output = strip_sidebar_row(output, "Issue Source")
+        if ticket_type == "bug":
+            output = strip_sidebar_row(output, "Severity")
+            output = strip_sidebar_row(output, "Data Loss")
+            output = strip_sidebar_row(output, "Data Unavailable")
+            output = strip_sidebar_row(output, "Downtime")
+        # RDI Customer Issue: keep Severity, keep Data Loss/Unavail/Downtime
+        # rows (the schema has Severity; Data fields aren't in the schema
+        # either but the impact-score field captures equivalent signal).
+
+    # RED / MOD / RCA / unknown projects: no-op (full RED-shaped sidebar
+    # renders as-is). MOD-specific tweaks (e.g., `Found by` lowercase field
+    # ID for the createJiraIssue payload) are handled by the skill, not the
+    # preview template. Per-project sidebar restructuring beyond DOC + RDSC
+    # tracked as future v0.16+ work in ROADMAP.
+
     return output
+
+
+def strip_sidebar_section(template: str, h3_text: str) -> str:
+    """Strip an entire `<div class="sidebar-section">...</div>` block whose
+    `<h3>` contains the given text (v0.15.6+).
+
+    Used by per-project sidebar sculpting to remove whole sections that
+    don't apply to the target project's schema.
+    """
+    # Pattern matches:
+    #   4-space indent + opening div + (with optional whitespace) +
+    #   <h3>h3_text</h3> + everything (non-greedy) until matching </div>
+    pattern = re.compile(
+        r'    <div class="sidebar-section">\s*\n\s*<h3>' + re.escape(h3_text) + r'</h3>.*?\n    </div>',
+        re.DOTALL,
+    )
+    return pattern.sub(
+        f'    <!-- {h3_text} sidebar section omitted: not applicable to this project schema -->',
+        template,
+    )
+
+
+def strip_sidebar_row(template: str, label_text: str) -> str:
+    """Strip a single `<div class="field-row">...</div>` whose
+    `<div class="field-label">` contains the given text (v0.15.6+).
+
+    Used by per-project sidebar sculpting to remove individual rows from
+    a section that's otherwise kept.
+    """
+    pattern = re.compile(
+        r'      <div class="field-row">\s*\n\s*<div class="field-label">' + re.escape(label_text) + r'</div>.*?\n      </div>',
+        re.DOTALL,
+    )
+    return pattern.sub(
+        f'      <!-- {label_text} row omitted: not applicable to this project schema -->',
+        template,
+    )
 
 
 def main() -> int:
