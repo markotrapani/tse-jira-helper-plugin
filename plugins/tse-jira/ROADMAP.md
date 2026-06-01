@@ -2,9 +2,24 @@
 
 Forward-looking direction for the plugin. Captures deferred items, known performance issues, and ideas surfaced during real-world use. Items are loosely grouped by theme; check items off when shipped.
 
-Last updated: 2026-06-01 (v0.15.4 — schema-truth update across DOC / MOD / RDSC + no-source-in-body rule for /tse-jira:doc).
+Last updated: 2026-06-01 (v0.15.5 — template-block conditional strips + strict-regex digit fix, surfaced during second A1 preview review).
 
 ## Recently shipped
+
+### v0.15.5 — template-block conditional strips + strict-regex digit fix (2026-06-01)
+
+Second A1 preview review surfaced three more cosmetic-but-visible issues in the rendered HTML. Bundled as a coherent template-cleanup patch.
+
+- [x] **Add `RCA_SECTION_0` to `SCALAR_PLACEHOLDERS`.** Previously missing — the template references `{RCA_SECTION_0}` in the sidebar but the script's known-scalar set didn't include it, so the placeholder leaked literally into rendered output on DOC tickets (and any other ticket without the RCA template populated).
+- [x] **Fix strict-mode regex to catch placeholders containing digits.** Old regex `\{[A-Z][A-Z_]+\}` did not match `{RCA_SECTION_0}` (the `_0` digit suffix broke the character class). New regex `\{[A-Z][A-Z0-9_]+\}` catches it, so `--strict` mode would have failed and surfaced the leak earlier. Tested: A1 preview re-rendered under `--strict` now passes (no leftover placeholders).
+- [x] **Conditionally strip the Comment-to-be-posted block** in `strip_conditional_blocks()`. When `COMMENT_HTML` is empty, whitespace-only, or contains only an HTML comment, the whole `<h2>Comment to be posted (after create)</h2>` + comment-block div is removed and replaced with an HTML comment. Eliminates the cosmetic noise of a heading + auto-poster banner with no actual comment body, which DOC tickets exhibited because v0.15.x doesn't post a comment for DOC. RED Bug tickets with actual impact-score-breakdown comment content unchanged.
+- [x] **Conditionally strip the RCA Template (Section 0) sidebar block** in `strip_conditional_blocks()`. When `RCA_SECTION_0` is missing, empty, or starts with "(n/a", the whole sidebar section is removed. Azure ACRE/AMR tickets that DO populate section 0 keep the block.
+- [x] **Verified by re-rendering A1.** HTML drops 23,503 → 22,781 bytes (cleaner output). All previously-cosmetic-leak content gone.
+
+Two cosmetic items still pending (deferred to v0.16+ — they require larger template restructuring than a single patch):
+
+- [ ] **DOC-shaped sidebar template.** The RED-bug-shaped sidebar still shows `(n/a — DOC schema)` for ~8 fields that don't exist on DOC (Severity, Component, Environment, Product/s, Found By, Issue source, Data loss/Unavail/Downtime, Seen by Customer/s). Each "n/a" row is functional but visually noisy. Either ship a `references/preview-template-doc.html` variant or make sidebar sections conditional per project-shape.
+- [ ] **Active detect-and-warn for internal-source patterns in description body.** v0.15.4 added the rule in docs; v0.15.5+ should detect (`**Source:**`, `Surfaced during`, etc.) in the description body and flag in pre-flight.
 
 ### v0.15.4 — schema-truth update + no-source-in-body rule (2026-06-01)
 

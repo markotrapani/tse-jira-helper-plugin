@@ -48,6 +48,7 @@ SCALAR_PLACEHOLDERS = {
     "MD_PATH", "HTML_PATH",
     "SCREENSHOT_SOURCE_DIR",
     "N",  # v0.15.3 — screenshot count, used in the attach-warning copy
+    "RCA_SECTION_0",  # v0.15.5 — RCA template section 0 (Azure ACRE/AMR only; blank/n-a otherwise)
 }
 
 # Loop-style placeholders — the template contains a single example line
@@ -184,10 +185,20 @@ def strip_conditional_blocks(template: str, fields: dict) -> str:
       screenshots exist" but v0.15.2 didn't enforce that. The block
       contains a `{N}` placeholder for the screenshot count, so it must
       be matched and removed before substitute_scalars replaces {N}.
+    - Comment-to-be-posted H2 + comment-block (v0.15.5) — removed when
+      COMMENT_HTML is empty, whitespace-only, or contains only an HTML
+      comment. DOC tickets don't post a comment, so this prevents the
+      heading-with-empty-body cosmetic noise.
+    - RCA Template (Section 0) sidebar section (v0.15.5) — removed when
+      RCA_SECTION_0 is missing, empty, or starts with "(n/a". DOC and
+      non-Azure tickets don't populate the RCA template, so the sidebar
+      block becomes filler.
     """
     output = template
     loops = fields.get("loops", {})
+    scalars = fields.get("scalars", {})
 
+    # v0.15.3: attach-warning
     screenshots = loops.get("screenshots_to_attach", [])
     if not screenshots:
         attach_warning_block = (
@@ -199,6 +210,59 @@ def strip_conditional_blocks(template: str, fields: dict) -> str:
         output = output.replace(
             attach_warning_block,
             '    <!-- attachment workflow notice omitted: no attachments -->',
+        )
+
+    # v0.15.5: Comment-to-be-posted block — strip when COMMENT_HTML is empty
+    # or contains only an HTML comment. The template block spans the H2
+    # heading + the comment-block div + 2 leading/trailing newlines.
+    comment_html = scalars.get("COMMENT_HTML", "").strip()
+    comment_html_is_empty_or_html_comment = (
+        not comment_html
+        or re.fullmatch(r"\s*(?:<!--.*?-->\s*)+", comment_html, re.DOTALL) is not None
+    )
+    if comment_html_is_empty_or_html_comment:
+        comment_section_block = (
+            '    <h2>Comment to be posted (after create)</h2>\n'
+            '    <div class="comment-block">\n'
+            '      <div class="comment-header">\n'
+            '        <span>📝 Comment by Marko Trapani (auto-posted after createJiraIssue)</span>\n'
+            '        <span>{ISO_TIMESTAMP}</span>\n'
+            '      </div>\n'
+            '      <div class="comment-body">\n'
+            '        {COMMENT_HTML}\n'
+            '      </div>\n'
+            '    </div>'
+        )
+        output = output.replace(
+            comment_section_block,
+            '    <!-- comment-to-be-posted section omitted: no comment for this ticket -->',
+        )
+
+    # v0.15.5: RCA Template (Section 0) sidebar — strip when RCA_SECTION_0
+    # is missing, empty, or marked n/a. Azure ACRE/AMR tickets that DO
+    # populate section 0 keep the block.
+    rca_section_0 = scalars.get("RCA_SECTION_0", "").strip()
+    rca_block_inapplicable = (
+        not rca_section_0
+        or rca_section_0.lower().startswith("(n/a")
+        or rca_section_0.lower().startswith("n/a")
+    )
+    if rca_block_inapplicable:
+        rca_sidebar_block = (
+            '    <div class="sidebar-section">\n'
+            '      <h3>RCA Template (Section 0)</h3>\n'
+            '      <div class="field-row" style="grid-template-columns: 1fr; gap: 4px;">\n'
+            '        <div class="field-label">0. Incident short description:</div>\n'
+            '        <div class="field-value">{RCA_SECTION_0}</div>\n'
+            '      </div>\n'
+            '      <div class="field-row muted" style="grid-template-columns: 1fr;">\n'
+            '        <div class="field-label" style="color: var(--color-text-subtle);">Sections 1-5 left as placeholders for Engineering / PM.</div>\n'
+            '      </div>\n'
+            '    </div>'
+        )
+        output = output.replace(
+            rca_sidebar_block,
+            '    <!-- RCA Template sidebar omitted: not applicable to this ticket (DOC schema, or non-Azure RED/MOD) -->',
         )
 
     return output
@@ -241,8 +305,11 @@ def main() -> int:
     rendered = substitute_scalars(rendered, fields)
     rendered = expand_loops(rendered, fields)
 
-    # Detect unsubstituted placeholders (informational unless --strict)
-    leftover = sorted(set(re.findall(r"\{[A-Z][A-Z_]+\}", rendered)))
+    # Detect unsubstituted placeholders (informational unless --strict).
+    # v0.15.5: regex now allows digits in placeholder names — previously
+    # `{RCA_SECTION_0}` (digit suffix) silently escaped detection, leading
+    # to literal `{RCA_SECTION_0}` text in rendered output.
+    leftover = sorted(set(re.findall(r"\{[A-Z][A-Z0-9_]+\}", rendered)))
     if leftover:
         msg = f"warning: {len(leftover)} unsubstituted placeholders: {', '.join(leftover[:10])}"
         if len(leftover) > 10:
