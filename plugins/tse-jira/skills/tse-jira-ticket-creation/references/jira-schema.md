@@ -159,56 +159,120 @@ Full custom-field set documented elsewhere in this file. All the standard TSE fi
 
 ### MOD (RedisModules) — RED-like but with MOD-specific differences
 
-Most RED fields apply, **but with these differences**:
+Most RED fields apply, **but with these differences** (verified via live MCP schema query 2026-06-01 — 36 fields total vs RED's 63):
 
 - **Components is multi-select** (e.g., `RedisAI, RediSearch`) — not single-select like RED.
-- **Found by** uses different allowed values: includes `Community` (not just `Manual testing / Automation / Prod/Customer`). AMR-routed bugs typically use `Community`.
-- **MOD-specific fields**: `BugScore` (numeric — computed by team, complementary to Impact Score), `Is Bug Description Set` (Boolean).
+- ⚠️ **`Found by` is a DIFFERENT field than RED's `Found By`** — distinct field IDs, distinct values:
+  - RED uses `customfield_10115` **`Found By`** (capital B): `Manual testing` / `Automation` / `Prod/Customer`
+  - MOD uses `customfield_10178` **`Found by`** (lowercase b): different allowed values, including `Community` (which RED's field does not have). AMR-routed bugs typically use `Community`.
+  - **Never use `_10115` on a MOD ticket** — the field doesn't exist there; the API will silently ignore it or reject the payload.
+- **MOD has BOTH `Impact Score` (`customfield_10585`) AND `BugScore` (`customfield_10121`).** Impact Score is the 8-130 model; BugScore is a MOD-team-computed numeric complement. Both can be set; check with the MOD team which they prefer in a given filing.
+- **MOD-specific fields**: `BugScore` (as above), `Is Bug Description Set` (Boolean, `customfield_18451`), `BUG details` (`customfield_16603`), `Last commenter` (`customfield_18550`).
+- **MOD lacks** (vs RED): `Action Items`, `Component` (singular — has `Components` plural), `Designer`, `Event Status`, `Major Prod Channel`, `Metrics`, `Reviewer`, `Solution Review`, `Start date`, `Story Points`, `Target Version`, `Test Name`, `Verified in Production`, `Verifier`, `Workaround`.
 - **AMR-routed MOD bugs**: must populate RCA template **sections 0-1** at file time (required for Azure customer-facing automation), and use labels `AMR` + `Azure-Integration`, `Affected Organizations = Azure`, `ICM ID/s` field instead of/alongside Zendesk ID.
 
 **Canonical examples**: MOD-14916 (RediSearch perf regression, non-AMR), MOD-12739 (AMR inconsistent count results).
 
 ### DOC (Documentation) — sparse schema, don't apply RED-style
 
-DOC project schema is **fundamentally minimal**:
+DOC project schema is **fundamentally minimal** (verified via live MCP schema query 2026-06-01 — 22 fields total for both Bug and Task; **the two issue types have identical schemas**, only the issuetype id differs):
 
-- ❌ NO `Severity` field
-- ❌ NO `Component` single-select
-- ❌ NO `Environment/s` field
-- ❌ NO `Product/s` field
-- ❌ NO `Seen by Customer/s` field
-- ❌ NO `Found By` field
-- ❌ NO `Issue source` field
-- ❌ NO 6-section `RCA` template field
-- ✅ `Impact Score` (`customfield_10585`) is available
-- ✅ `Affected Organizations` (`customfield_10595`) is available
-- ✅ `Effort` (DOC-specific custom field)
-- ✅ Standard Jira fields (Summary, Description, Priority, Labels, Assignee, Reporter, etc.)
+**Present:**
+- ✅ Standard Jira: `summary`, `description`, `priority`, `labels`, `assignee`, `attachment`, `fixVersions`, `parent`, `issuelinks`, `issuerestriction`, `Sprint` (`customfield_10010`)
+- ✅ `Affected Organizations` (`customfield_10595`)
+- ✅ `Effort` (`customfield_10167`) — DOC-specific T-shirt sizing (XS / S / M / L)
+- ✅ `Impact Score` (`customfield_10585`) — same 8-130 model as RED
+- ✅ `Design` (`customfield_10376`) — typically blank for support filings; used for UX/design tasks
+- ✅ `Vulnerability` (`customfield_10395`) — security-related tag; blank for normal doc gaps
+- ✅ `Rank` (`customfield_10011`), `Man days` (`customfield_10355`), `Flagged` (`customfield_10017`), secondary `Project` (`customfield_19037`)
 
-**The skill should NOT attempt to populate the RED-style customfield set on DOC tickets.** Verify available fields via `getJiraIssueTypeMetaWithFields` before construction.
+**NOT present (do NOT include in `createJiraIssue` payload):**
+- ❌ Severity, Component, Environment/s, Product/s, Reported Version/Build
+- ❌ Seen by Customer/s, Found By, Issue source
+- ❌ RCA template (`customfield_10063`)
+- ❌ Workaround (`customfield_10374`)
+- ❌ Impact Score details (`customfield_10681`)
+- ❌ Action Items (`customfield_10672`)
+- ❌ Data loss / Data unavailable / Downtime
+- ❌ Event Status, Major Prod Channel, Metrics
+- ❌ Zendesk ID/s (`customfield_10036`) — typically not on DOC; if a DOC ticket originates from a customer Zendesk, reference the URL in the description body instead
 
-**Canonical example**: DOC-6506 (Go-redis SmartClient handoff incorrect default endpoint type).
+**Required at schema level:** `project`, `summary`, `issuetype`. Everything else is optional. (Validation rules at the project level are minimal — DOC doesn't have the "Seen by Customer required for Production" rule that RED enforces.)
 
-### RDSC (Redis Data Integration) — dedicated structured fields
+**Issue Types:**
+- `Bug` — id `10074` (DOC-specific, NOT 10004 like RED). Use when an existing public docs page states something incorrect (DOC-6506 shape).
+- `Task` — id `10023`. Use for "publish missing info" / "update docs to clarify X" / "add docs for Y" style work (DOC-6659 shape — the v0.15 doc flow default).
+- Both schemas are identical at the field level — the choice is purely about ticket framing.
 
-RDSC schema differs **fundamentally** from RED:
+**Canonical examples**: DOC-6506 (Bug — Go-redis SmartClient handoff incorrect default endpoint type), DOC-6659 (Task — FF: Update docs regarding Docker image accessibility).
 
-- ❌ NO `Severity` field
-- ❌ NO 6-section `RCA` template field
-- ❌ NO `Found By` field
-- ❌ NO `Issue source` field
-- ❌ NO `Seen by Customer/s` field
-- ✅ **Dedicated `Steps to Reproduce` custom field** — not a description H2 section!
-- ✅ **Dedicated `Expected Result` custom field** — not a description H2 section!
-- ✅ **Dedicated `Actual Result` custom field** — not a description H2 section!
-- ✅ Standard fields (Affected Organizations, Impact Score, Workaround, Labels)
-- ✅ Labels: `Support-Attention`, `rca_related` (RDSC-specific tags, instead of `CS`/`Support`)
-- ✅ Multi-valued `Affected Organizations` when same defect affects multiple customers (often paired with `Cloners` link to sibling customer ticket)
-- ✅ Special issue type `RDI Customer Issue` (id `14992`) — distinct from regular `Bug` (id `10004`)
+### RDSC (Redis Data Integration) — TWO distinct issue types with very different schemas
 
-**Description body becomes a customer Q&A transcript** — verbatim email quotes, customer-provided shell commands, attached `container.log.txt` + `application.properties`. The "structured" sections (repro / expected / actual) live in the dedicated custom fields, not in the body.
+RDSC supports two filing shapes. **Decide which one applies BEFORE field mapping** — they require different fields, including different REQUIRED fields. Verified via live MCP schema query 2026-06-01.
 
-**Canonical example**: RDSC-4706 (AXIS / Debezium / Oracle RAC SCN files).
+#### RDSC Bug (id `10004`) — 29 fields
+
+The general-purpose RDSC bug type. Use for code defects, regressions, infrastructure bugs in the RDI product where a Customer Issue framing doesn't apply.
+
+**Present:**
+- ✅ Standard Jira: `summary`, `description`, `priority`, `labels`, `assignee`, `attachment`, `fixVersions`, `parent`, `issuelinks`, `Sprint`, `Story Points`
+- ✅ **Dedicated `Steps to Reproduce` custom field (`customfield_10129`)** — NOT a description H2 section
+- ✅ **Dedicated `Expected Result` custom field (`customfield_10660`)** — NOT a description H2 section
+- ✅ **Dedicated `Actual Result` custom field (`customfield_10661`)** — NOT a description H2 section
+- ✅ `Component` (`customfield_10181`) — single-select, like RED (not multi-select like MOD)
+- ✅ `Affected Organizations` (`customfield_10595`), `Environment/s` (`customfield_10025`), `Impact Score` (`customfield_10585`), `Zendesk ID/s` (`customfield_10036`)
+- ✅ `Affects versions` (`versions`, system field) — surfaced for RDSC Bug, unlike RED Bug
+- ✅ Unusual: has BOTH `environment` (system field) AND `customfield_10025 Environment/s` — they coexist; use `_10025` for the structured choice
+- ✅ `CS Rank` (`customfield_10321`), `Blocked Reason` (`customfield_10431`), `Change risk` (`customfield_10088`) — RDSC-specific triage fields
+
+**NOT present:**
+- ❌ Severity, Found By, Issue source, Seen by Customer/s
+- ❌ Workaround (`customfield_10374`), Impact Score details (`customfield_10681`), Action Items (`customfield_10672`)
+- ❌ RCA template (`customfield_10063`)
+- ❌ Data loss / Data unavailable / Downtime, Event Status, Major Prod Channel, Metrics
+
+**Required at schema level:** `project`, `summary`, `issuetype`. Other fields optional.
+
+#### RDSC RDI Customer Issue (id `14992`) — 23 fields, **9 REQUIRED**
+
+The RDSC-specific TSE filing type for customer-driven RDI issues. **Significantly stricter** than RDSC Bug — 9 fields are required at the schema level (not just project validation rules), so omitting any will fail the create call.
+
+**Required at schema level** (all 9 must be set in `createJiraIssue`):
+1. `project`
+2. `summary`
+3. `issuetype`
+4. `description`
+5. `Affects versions` (`versions`) — multi-select array
+6. `Environment/s` (`customfield_10025`)
+7. `Impact Score` (`customfield_10585`) — integer, 8-130 per the impact-score model. Compute BEFORE create; can't defer to triage.
+8. **`Database Information`** (`customfield_16205`) — RDI-specific. Captures source DB info (vendor / version / hosting model).
+9. **`Type of Setup`** (`customfield_16204`) — RDI-specific. Captures the deployment topology.
+
+**Optional but useful:**
+- `Severity` (`customfield_10180`) — UNLIKE RDSC Bug, which doesn't have this field. The TSE-judged severity from the standard 4-level scale applies.
+- `Affected Organizations` (`customfield_10595`), `Zendesk ID/s` (`customfield_10036`)
+- **RDI-specific custom fields:**
+  - `RDI: Source Database Version` (`customfield_16206`)
+  - `RDI: Additional Info` (`customfield_16207`)
+
+**NOT present** (vs RDSC Bug):
+- ❌ Component (`customfield_10181`) — RDI Customer Issue doesn't use Component routing
+- ❌ Steps to Reproduce / Expected Result / Actual Result — the RDSC Bug structured fields are NOT on the RDI Customer Issue type. Repro content goes in the description body or `RDI: Additional Info`.
+- ❌ CS Rank, Blocked Reason, Change risk
+
+**When to use which RDSC issue type:**
+
+| Situation | Type |
+|---|---|
+| Customer-reported RDI defect, has DB info + setup details, needs immediate routing to RDI team | **RDI Customer Issue** (14992) |
+| RDI code defect / regression surfaced by internal testing, no specific customer involved | **Bug** (10004) |
+| Customer issue where you don't have Database Information / Type of Setup yet | Start with **Bug** (10004), convert to RDI Customer Issue once info collected — converting back may lose fields, so prefer RDI Customer Issue once you have the required inputs |
+
+**Labels (both types):** `Support-Attention`, `rca_related` (RDSC-specific tags, instead of `CS` / `Support`).
+
+**Description body convention:** for **RDSC Bug**, the body is often a customer Q&A transcript — verbatim email quotes, customer-provided shell commands, attached `container.log.txt` + `application.properties`. The structured sections (repro / expected / actual) live in the dedicated custom fields, not in the body. For **RDI Customer Issue**, the body is the narrative summary; structured DB info goes in the dedicated fields.
+
+**Canonical example**: RDSC-4706 (RDSC Bug type — AXIS / Debezium / Oracle RAC SCN files). No canonical RDI Customer Issue extract is currently in `references/canonical-jiras/` — add one the next time we file via type 14992.
 
 ### RCA (Root Cause Analysis) — two distinct title shapes
 
@@ -252,13 +316,15 @@ Severity-3 bugs are typically cosmetic / workaround-exists / supportability and 
 
 ## Projects (Confirmed)
 
-| Key   | ID    | Name                | TSE Default Issue Type     |
-|-------|-------|---------------------|----------------------------|
-| RED   | 10020 | Redislabs           | Bug (10004)                |
-| MOD   | 10026 | RedisModules        | Bug (10004)                |
-| DOC   | 10037 | (Documentation)     | Bug (10074)                |
-| RDSC  | ?     | (Redis Data Integration) | Bug (10004) — Support docs don't single out a special TSE type; treat like other projects |
-| RCA   | 10245 | Root Cause Analysis | **RCA (10590)** — confirmed by RCA-41 template |
+| Key   | ID    | Name                | TSE Default Issue Type     | Other TSE-relevant Issue Types |
+|-------|-------|---------------------|----------------------------|--------------------------------|
+| RED   | 10020 | Redislabs           | Bug (10004)                | — |
+| MOD   | 10026 | RedisModules        | Bug (10004)                | — |
+| DOC   | 10037 | (Documentation)     | Task (10023) — default for `/tse-jira:doc` | Bug (10074) for "doc page is wrong" cases. Both have identical 22-field schema. |
+| RDSC  | ?     | (Redis Data Integration) | Bug (10004) — internal RDI defect, 29 fields | **RDI Customer Issue (14992)** — TSE-filed customer issue, 23 fields with **9 required** (incl. Database Information, Type of Setup, Impact Score). Use this when customer-driven. |
+| RCA   | 10245 | Root Cause Analysis | **RCA (10590)** — confirmed by RCA-41 template | — |
+
+(RDSC project id pending verification — `getVisibleJiraProjects` lookup needed. Issue type ids 10004 and 14992 confirmed via 2026-06-01 MCP schema query.)
 
 > **Important:** Bug issue type ID differs by project. RED+MOD share `10004`, DOC uses `10074`. Always pass the right `issuetype` ID from this table.
 

@@ -152,6 +152,7 @@ Same as [`/tse-jira:bug`](./bug.md#prerequisites):
 - **Implicit confirmations don't count.** "Yes", "go", "looks good" are NOT publish keywords. You must say something containing "publish".
 - **DOC schema is minimal** — the skill explicitly does NOT populate RED-style customfields (Severity, Component, Environment, etc.). If you find yourself wanting those, you probably want `/tse-jira:bug` instead.
 - **No PII auto-redaction** — DOC bugs typically don't carry customer PII the way Zendesk-derived bugs do, but if your description contains customer names / emails / phone numbers, review the preview before publishing.
+- ⚠️ **No TSE-internal source attribution in the body** (v0.15.4 rule). Your `--description-file` content should be docs-team-facing only — what's missing/wrong and how to fix it. Do NOT include lines like `**Source:** FF support audit 2026-05-26 (DOC_BUG_QUEUE A1)` or `Surfaced during the FeatureForm Support audit`. The docs team reading the ticket doesn't care which Support tool surfaced the gap; the internal reference clutters the body and ages poorly. If the finding has a public Slack permalink, use `--from-slack <url>` (renders the standard DOC-6659 italic footer). Internal audit/queue references belong in the `.md` preview header (TSE audit trail), NOT in the published body. The dry-run preview will flag this in pre-flight if detected.
 
 ## Related
 

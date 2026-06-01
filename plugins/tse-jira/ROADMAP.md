@@ -2,9 +2,23 @@
 
 Forward-looking direction for the plugin. Captures deferred items, known performance issues, and ideas surfaced during real-world use. Items are loosely grouped by theme; check items off when shipped.
 
-Last updated: 2026-06-01 (v0.15.3 — fixed `{N}` placeholder leak + conditional attach-warning rendering, surfaced during second `/tse-jira:doc` live test against FF DOC A1).
+Last updated: 2026-06-01 (v0.15.4 — schema-truth update across DOC / MOD / RDSC + no-source-in-body rule for /tse-jira:doc).
 
 ## Recently shipped
+
+### v0.15.4 — schema-truth update + no-source-in-body rule (2026-06-01)
+
+The A1 dry-run review surfaced two distinct issues worth fixing in one patch:
+
+- [x] **Encode the "no TSE-internal source attribution in description body" rule** in SKILL.md Workflow D + commands/doc.md. Marko's feedback: *"the actual jira should not reference this kind of source info"* — referring to closing lines like `**Source:** FF support audit 2026-05-26 (DOC_BUG_QUEUE A1; Wall #1 in DEPLOYMENT_LOG.md)`. Such attribution clutters the body, ages poorly, and adds zero value to the docs team reading the ticket. Captured as memory `feedback-no-internal-source-in-doc-body`. Pre-flight detect-and-warn (no auto-mutation) added to the skill's behavioral spec; active enforcement in the render pipeline deferred to v0.15.5+ if drift is observed.
+- [x] **Schema-truth update for DOC / MOD / RDSC.** Live MCP queries against `redislabs.atlassian.net` confirmed/corrected several entries in `references/jira-schema.md`:
+  - **DOC:** added `Design` (`customfield_10376`) and `Vulnerability` (`customfield_10395`) to the fields-that-exist list — previously missing. Confirmed Bug (10074) and Task (10023) have **identical 22-field schemas** (only issuetype differs).
+  - **MOD:** clarified that `Found by` (`customfield_10178`, lowercase b) is a **different field** than RED's `Found By` (`customfield_10115`, capital B). Documented MOD's full field list (36 fields total) including BOTH `Impact Score` and `BugScore`.
+  - **RDSC:** split into two distinct sections — **RDSC Bug** (10004, 29 fields, has dedicated `Steps to Reproduce`/`Expected Result`/`Actual Result` custom fields) and **RDI Customer Issue** (14992, 23 fields, **9 REQUIRED at schema level** including `Database Information`, `Type of Setup`, `Impact Score`). The two RDSC issue types have fundamentally different field sets — the plugin must branch on which one applies.
+  - **Projects table:** expanded with an "Other TSE-relevant Issue Types" column to capture DOC Task (10023) and RDSC RDI Customer Issue (14992) alongside the defaults.
+- [ ] **RDSC project ID still pending verification.** The table currently has `?` for RDSC; resolve via `getVisibleJiraProjects` next session.
+- [ ] **Active detect-and-warn implementation for internal-source patterns in description body.** v0.15.4 documents the rule but doesn't enforce it in code. If TSEs (or AI drafting finding files) drift from the rule, add a pre-flight scan in the render flow that quotes offending paragraphs and asks for confirmation. v0.15.5+ candidate.
+- [ ] **Add a canonical RDI Customer Issue extract to `references/canonical-jiras/`.** Next time we file via type 14992, save the structure as `RDSC-XXXXX-rdi-customer-issue.md` to anchor future filings.
 
 ### v0.15.3 — `{N}` placeholder + attach-warning fixes (2026-06-01)
 

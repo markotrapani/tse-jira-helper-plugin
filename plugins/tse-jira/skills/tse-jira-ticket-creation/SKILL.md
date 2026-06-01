@@ -641,8 +641,14 @@ For documentation gaps surfaced from **internal sources** — Support audits, Sl
    ```
    **Do NOT include** RED-style customfields. The DOC schema doesn't have Severity, Component, Environment, Product, Seen by Customer/s, Found By, Issue source, RCA template, Workaround, Impact Score, Action Items, Data loss / Data unavailable / Downtime. If unsure, call `getJiraIssueTypeMetaWithFields` with `projectIdOrKey=DOC`, `issueTypeId=10074` and filter to the allowed field set.
 6. **Construct ADF description** from the description body:
-   - Plain markdown body → convert to ADF paragraphs
-   - If `--from-slack <url>` given, append a final paragraph: `_Issue created in Slack from a [message](URL)._` (italic, matches DOC-6659)
+   - Plain markdown body → convert to ADF paragraphs.
+   - ⚠️ **Body must be docs-team-facing only — NO TSE-internal source attribution** (v0.15.4 rule, surfaced from the 2026-06-01 A1 review). Specifically, do NOT include lines like:
+     - `**Source:** FF support audit 2026-05-26 (DOC_BUG_QUEUE A1; Wall #1 in DEPLOYMENT_LOG.md).`
+     - `Surfaced during the FeatureForm Support audit, 2026-05-26.`
+     - References to internal queue names, audit walls, deployment log section numbers, internal Slack channels mentioned without a public permalink, or internal Redis filename paths.
+     The docs team reading the ticket cares about the gap and the fix, not which Support tool surfaced it. Internal attribution clutters the body, ages poorly, and adds zero value to the assigned writer. Such metadata lives in the `.md` preview header and pre-flight checks (TSE-side audit trail), NEVER in the publish-bound body. See memory: [[feedback-no-internal-source-in-doc-body]].
+   - **Pre-flight check the body for the patterns above.** If detected, surface in pre-flight as a yellow warning: `⚠️ Description body may contain internal-source attribution — review before publish.` with the offending paragraph(s) quoted. Do NOT auto-strip — let the TSE decide.
+   - If `--from-slack <url>` given, append a final paragraph: `_Issue created in Slack from a [message](URL)._` (italic, matches DOC-6659). This is the ONLY acceptable "source attribution" — a public clickable permalink, not internal references.
 7. **Write preview files** at `~/tse-jira-previews/DOC-doc-<timestamp>.{md,html}` — done in dry-run.
 8. **On `--publish` or "publish this" follow-up**: ask for explicit final yes, then:
    - `createJiraIssue` with the constructed payload
