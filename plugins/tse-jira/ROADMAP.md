@@ -2,14 +2,23 @@
 
 Forward-looking direction for the plugin. Captures deferred items, known performance issues, and ideas surfaced during real-world use. Items are loosely grouped by theme; check items off when shipped.
 
-Last updated: 2026-05-27 (during the v0.15.0 FeatureForm Support audit session — added `/tse-jira:doc`).
+Last updated: 2026-06-01 (v0.15.3 — fixed `{N}` placeholder leak + conditional attach-warning rendering, surfaced during second `/tse-jira:doc` live test against FF DOC A1).
 
 ## Recently shipped
+
+### v0.15.3 — `{N}` placeholder + attach-warning fixes (2026-06-01)
+
+Surfaced during the second real `/tse-jira:doc` live test (FF DOC A1, the OCI helm chart URL gap). Two bugs in v0.15.2 that the first test didn't catch:
+
+- [x] **Add `N` to `SCALAR_PLACEHOLDERS` (for real this time).** v0.15.2's commit message claimed to add both `SUMMARY_FIRST_60_CHARS` and `N`, but only the former actually landed. `N` (the screenshot count) was still missing from the script's known-scalar set, generating `warning: unknown scalar placeholder 'N' — ignored` and leaving `{N}` literally in the rendered HTML.
+- [x] **Make the `.attach-warning` div conditional on `screenshots_to_attach` being non-empty.** The template has a comment `<!-- Attachment warning (v0.10+): only render if customer-provided screenshots exist -->` but neither v0.15.0/0.15.1/0.15.2 actually enforced that. DOC tickets with no images were rendering a spurious "The {N} screenshots referenced below need to be manually attached..." notice — wrong on two counts (the {N} leak above + the block shouldn't appear at all). Now stripped via a new `strip_conditional_blocks()` pre-step that runs before `substitute_scalars` (because the matched template text contains `{N}`).
+- [x] **Auto-compute `N` from `len(loops.screenshots_to_attach)` in `main()`.** Callers don't have to hand-set the count anymore — and if they do, their value is respected.
+- [x] **Verified with `--strict` mode.** Re-rendering A1 with the same inputs now passes `--strict` (no unsubstituted placeholders) and the HTML drops from 23,704 → 23,315 bytes because the spurious attach-warning block is gone.
 
 ### v0.15.2 — render-html-preview.py handles empty loop arrays (2026-05-27)
 
 - [x] **Patch `render-html-preview.py` to handle empty loop arrays.** First real `/tse-jira:doc` test showed that DOC tickets without related Jiras / labels / screenshots left the template's example placeholders (`{LINK_TYPE}`, `{LABEL}`, `{SCREENSHOT_FILENAME}`, etc.) in the output because the existing `if items:` branches only handled the non-empty case. Now empty arrays explicitly replace their example block with a muted "none" / "no labels" / "no attachments" notice. **Visual consistency with RED-bug previews restored** — DOC tickets now render through the same template + script.
-- [x] **Add `SUMMARY_FIRST_60_CHARS` + `N` to `SCALAR_PLACEHOLDERS`.** Both were referenced by `preview-template.html` (the latter inside the screenshot-attachment warning copy) but missing from the script's known-scalar set, generating "unknown scalar placeholder" warnings.
+- [x] ~~**Add `SUMMARY_FIRST_60_CHARS` + `N` to `SCALAR_PLACEHOLDERS`.**~~ ⚠️ Only `SUMMARY_FIRST_60_CHARS` actually landed in the v0.15.2 commit; `N` was missed. v0.15.3 closes the gap.
 - [x] **Closes the DOC-HTML-template gap from v0.15.1 ROADMAP.** Turned out we didn't need a separate DOC template — the existing template handles DOC fine once empty arrays are cleaned up. Just needed `(n/a — DOC schema)` strings for the RED-only sidebar fields. (Future polish: make those sidebar sections conditional so they hide entirely when not applicable, instead of showing as "(n/a)" — but that's purely cosmetic and not blocking.)
 
 ### v0.15.1 — assignee-auto-suggest removal + DOC HTML template item (2026-05-27)

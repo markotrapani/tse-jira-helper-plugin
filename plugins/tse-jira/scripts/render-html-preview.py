@@ -47,6 +47,7 @@ SCALAR_PLACEHOLDERS = {
     "CREATE_PAYLOAD_JSON", "COMMENT_PAYLOAD_JSON", "LINK_PAYLOADS_JSON",
     "MD_PATH", "HTML_PATH",
     "SCREENSHOT_SOURCE_DIR",
+    "N",  # v0.15.3 — screenshot count, used in the attach-warning copy
 }
 
 # Loop-style placeholders — the template contains a single example line
@@ -170,6 +171,39 @@ def expand_loops(template: str, fields: dict) -> str:
     return output
 
 
+def strip_conditional_blocks(template: str, fields: dict) -> str:
+    """Remove conditional template blocks based on field state (v0.15.3+).
+
+    Some template blocks should only render when their underlying data
+    exists. This runs BEFORE substitute_scalars so it can match the
+    untouched {PLACEHOLDER} tokens in the template text.
+
+    Currently handles:
+    - .attach-warning div — removed when screenshots_to_attach is empty.
+      The template's comment says "only render if customer-provided
+      screenshots exist" but v0.15.2 didn't enforce that. The block
+      contains a `{N}` placeholder for the screenshot count, so it must
+      be matched and removed before substitute_scalars replaces {N}.
+    """
+    output = template
+    loops = fields.get("loops", {})
+
+    screenshots = loops.get("screenshots_to_attach", [])
+    if not screenshots:
+        attach_warning_block = (
+            '    <!-- Attachment warning (v0.10+): only render if customer-provided screenshots exist -->\n'
+            '    <div class="attach-warning">\n'
+            '      <strong>⚠️ Attachment workflow:</strong> The {N} screenshots referenced below need to be manually attached to the new Jira in the browser after creation. MCP <code>createJiraIssue</code> doesn\'t support attachments. Once attached, the image references in the description will resolve to inline images in Jira.\n'
+            '    </div>'
+        )
+        output = output.replace(
+            attach_warning_block,
+            '    <!-- attachment workflow notice omitted: no attachments -->',
+        )
+
+    return output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Substitute Jira-preview fields into preview-template.html",
@@ -194,7 +228,17 @@ def main() -> int:
     template = args.template.read_text(encoding="utf-8")
     fields = json.loads(args.input.read_text(encoding="utf-8"))
 
-    rendered = substitute_scalars(template, fields)
+    # v0.15.3: auto-compute the screenshot count `N` from the loops array, so
+    # callers don't have to set it manually. If the caller already provided
+    # scalars.N, respect that; otherwise derive from len(screenshots_to_attach).
+    scalars = fields.setdefault("scalars", {})
+    if "N" not in scalars:
+        scalars["N"] = str(len(fields.get("loops", {}).get("screenshots_to_attach", [])))
+
+    # v0.15.3: strip conditional blocks BEFORE scalar substitution so block
+    # patterns containing {N} or other placeholders still match the template.
+    rendered = strip_conditional_blocks(template, fields)
+    rendered = substitute_scalars(rendered, fields)
     rendered = expand_loops(rendered, fields)
 
     # Detect unsubstituted placeholders (informational unless --strict)
